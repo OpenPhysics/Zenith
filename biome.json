@@ -159,6 +159,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/zenith-screen/model/BrightStarCatalog.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noApproximativeNumericConstant": "off"
+          }
+        }
+      }
     }
   ],
   "javascript": {

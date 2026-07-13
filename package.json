@@ -39,6 +39,7 @@
     "prepare": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },
   "dependencies": {
+    "astronomy-engine": "^2.1.19",
     "scenerystack": "^3.0.0"
   },
   "devDependencies": {

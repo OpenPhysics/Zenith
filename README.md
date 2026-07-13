@@ -1,14 +1,24 @@
 # Zenith
 
-A SceneryStack **planetarium renderer** for the night sky — project the celestial
-sphere for an observer on Earth. Built with [SceneryStack](https://scenerystack.org/),
+A SceneryStack **first-person planetarium** for the night sky — look around from
+an Earth observer, set latitude and FOV, and watch stars and planets move with
+civil time. Built with [SceneryStack](https://scenerystack.org/),
 Vite 8, TypeScript 7, and Biome 2.
 
 ## Features
 
-- Single-screen SceneryStack scaffold with model/view separation
-- Observer location (latitude / longitude) and local sidereal time in the model
+- First-person FOV with pan (drag / arrows), FOV zoom (scroll / slider), and Ctrl-time
+- Click or N/P-cycle a named star or planet for magnitude, RA/Dec, and alt/az readout
+- Twilight sky gradient from solar altitude (stars fade in daylight); toggle atmosphere off for a permanent night sky
+- Location presets and longitude control (Boulder, Greenwich, poles, equator, Sydney)
+- Date/time presets for solstices and equinoxes
+- Bright-star catalog (~4100 stars, mag ≤ 5.8) with magnitude limit and name labels
+- Classroom constellation stick figures and names (Ursa Major, Orion, Cassiopeia, Southern Cross)
+- Cardinals, zenith, meridian, and optional equatorial RA/Dec grid overlays
+- Sun, Moon, and Mercury–Neptune via `astronomy-engine` ephemerides
+- Observer latitude/longitude, civil UTC time, and derived local sidereal time with play / pause / speed
 - English, Spanish, and French localization via `StringManager`
+- Deep-link startup via query params (`lat`, `lon`, `date`, `fov`, `magLimit`)
 - Default (night-sky) and projector color profiles
 - Progressive Web App (installable, offline-capable)
 - Git hooks for Biome pre-commit checks
@@ -22,6 +32,9 @@ npm run icons    # generate PNG icons from public/icons/icon.svg
 npm start        # dev server → http://localhost:5173
 ```
 
+Deep-link example for a Sydney summer-solstice activity:
+
+`http://localhost:5173/?lat=-33.9&lon=151.2&date=2024-12-21T10:00:00Z&fov=60&magLimit=4`
 ## Scripts
 
 | Command | Description |

@@ -2,11 +2,8 @@
  * ZenithPreferencesModel.ts
  *
  * Model for the simulation-specific preferences shown in Preferences →
- * Simulation. Each preference Property takes its initial value from the
- * corresponding query parameter in zenithQueryParameters.
- *
- * Remove the example preference (and its query parameter / UI control) if the
- * sim has no sim-specific preferences.
+ * Simulation. Overlay toggles (star names, constellation lines, planet labels)
+ * take their initial values from zenithQueryParameters and outlive Reset All.
  */
 
 import { BooleanProperty } from "scenerystack/axon";
@@ -15,18 +12,31 @@ import ZenithNamespace from "../ZenithNamespace.js";
 import zenithQueryParameters from "./zenithQueryParameters.js";
 
 export class ZenithPreferencesModel {
-  /** Example preference; initial value comes from the `exampleToggle` query parameter. */
-  public readonly exampleToggleProperty: BooleanProperty;
+  /** Whether curated bright-star name labels are drawn. */
+  public readonly showStarLabelsProperty: BooleanProperty;
+
+  /** Whether classroom constellation stick figures are drawn. */
+  public readonly showConstellationsProperty: BooleanProperty;
+
+  /** Whether preferred planet name labels are drawn. */
+  public readonly showPlanetLabelsProperty: BooleanProperty;
 
   public constructor(tandem?: Tandem) {
-    this.exampleToggleProperty = new BooleanProperty(
-      zenithQueryParameters.exampleToggle,
-      tandem ? { tandem: tandem.createTandem("exampleToggleProperty") } : undefined,
-    );
+    this.showStarLabelsProperty = new BooleanProperty(zenithQueryParameters.showStarLabels, {
+      ...(tandem && { tandem: tandem.createTandem("showStarLabelsProperty") }),
+    });
+    this.showConstellationsProperty = new BooleanProperty(zenithQueryParameters.showConstellations, {
+      ...(tandem && { tandem: tandem.createTandem("showConstellationsProperty") }),
+    });
+    this.showPlanetLabelsProperty = new BooleanProperty(zenithQueryParameters.showPlanetLabels, {
+      ...(tandem && { tandem: tandem.createTandem("showPlanetLabelsProperty") }),
+    });
   }
 
   public reset(): void {
-    this.exampleToggleProperty.reset();
+    this.showStarLabelsProperty.reset();
+    this.showConstellationsProperty.reset();
+    this.showPlanetLabelsProperty.reset();
   }
 }
 

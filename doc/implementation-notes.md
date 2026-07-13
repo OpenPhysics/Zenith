@@ -2,72 +2,94 @@
 
 ## Architecture Overview
 
-Zenith is a SceneryStack planetarium renderer. The model owns observer location
-and the simulation clock (local sidereal time); the view projects the celestial
-sphere for that observer. Scaffolded from TemplateSingleSim (model/view,
-color profiles, localization, Reset All, a11y).
-
-### High-Level Architecture
+Zenith is a SceneryStack **first-person planetarium**. The model owns observer
+location, civil time (with derived LST), look/FOV state, display toggles, and
+object selection; the view projects a bright-star catalog, named-star labels,
+constellation stick figures, solar-system discs, and coordinate overlays into a
+rectangular sky panel.
 
 ```
 main.ts
-  └─ ZenithScreen             (Screen<ZenithModel, ZenithScreenView>)
-       ├─ ZenithModel          observer + clock  (src/zenith-screen/model/)
-       └─ ZenithScreenView     planetarium view  (src/zenith-screen/view/)
-            ├─ ZenithScreenSummaryContent     (PDOM overview)
-            └─ ZenithKeyboardHelpContent      (keyboard help dialog)
+  └─ ZenithScreen
+       ├─ ZenithModel          observer + civil clock + look/FOV + overlays + selection
+       └─ ZenithScreenView
+            ├─ PlanetariumSkyNode          (FOV: stars + overlays + labels)
+            ├─ PlanetariumPlanetsNode
+            ├─ SelectedObjectReadout
+            ├─ attachPlanetariumInteraction
+            ├─ SimPanel controls
+            ├─ ZenithScreenSummaryContent
+            └─ ZenithKeyboardHelpContent
 
-src/common/
-  ├─ SimPanel.ts           pre-themed panel (all screens share ZenithColors)
-  └─ TimeModel.ts          composable play/pause + elapsed time
-
-src/preferences/
-  ├─ ZenithPreferencesModel   sim-specific pref state
-  ├─ ZenithPreferencesNode    pref UI shown in Preferences → Simulation
-  └─ zenithQueryParameters    query-parameter declarations
-
-reference/stellarium-web-engine/   (optional local reference; gitignored)
+src/common/sky/SkyCoordinates.ts   equatorial ↔ horizontal
+src/common/sky/PlanetEphemeris.ts  astronomy-engine wrapper
+src/zenith-screen/model/BrightStarCatalog.ts
+src/zenith-screen/model/NamedBrightStars.ts
+src/zenith-screen/model/ConstellationLines.ts
+src/zenith-screen/model/LocationPreset.ts
+src/zenith-screen/model/EpochPreset.ts
+src/zenith-screen/model/SolarSystemBodies.ts
+reference/stellarium-web-engine/   (gitignored local reference)
 ```
 
-Data flows Model → View through AXON `Property` objects. The view observes
-properties via `.link()` or `.lazyLink()` and updates reactively.
+## Projection pipeline
 
-## Model Components
+1. Catalog star, named star, constellation endpoint, or planet (RA hours, Dec degrees, J2000)
+2. `equatorialToHorizontal(ra, dec, lat, lst)` → alt/az
+3. Cull below horizon (when shown) and outside FOV
+4. Map to panel pixels centered on `lookAzimuth` / `lookAltitude` with width = FOV
 
-### ZenithModel
+LST is `normalizeHours(SiderealTime(civil) + longitudeDeg/15)` so stars and
+planets share one clock.
 
-Coordinates planetarium state:
+Inspired by Stellarium Web Engine’s observer → frame → project path, implemented
+in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
+`astronomy-engine`; visual colors/radii follow `planets.ini`.
 
-- `timer` — `TimeModel` (starts playing) for sky animation
-- `latitudeProperty` / `longitudeProperty` — observer location (degrees)
-- `localSiderealTimeHoursProperty` — hours in `[0, 24)`, advances with the clock
+## Interaction
 
-Add catalog stars, Sun/Moon ephemerides, and field-of-view state as further
-`Property` objects. Keep units SI / degrees as documented in `SimConstants.ts`.
+- Drag / arrows → pan look az/alt
+- Ctrl-drag / Ctrl+arrows → advance civil time (LST follows)
+- Click (small motion) → select nearest named star or planet
+- N / P → cycle selectable objects in the FOV
+- Escape → clear selection
+- Scroll wheel → change FOV
+- TimeControlNode → play/pause/step + SLOW/NORMAL/FAST
+- Location / epoch ComboBoxes → jump observer site or civil epoch
+- Checkboxes → altitude grid, cardinals, meridian, RA/Dec grid, horizon, planets, atmosphere
+- Preferences → Simulation → star names, constellation lines, planet names
+  (these overlays outlive Reset All; also seedable via query parameters)
 
-### TimeModel (common)
+Sky color follows solar altitude (day → twilight → night) when atmosphere is on.
+Stars, star labels, and constellation figures fade as the Sun rises. Turning
+atmosphere off keeps a night sky with stars fully visible (Stellarium-style).
 
-`src/common/TimeModel.ts` is a reusable play/pause + elapsed-time model.
-Compose it into screen models rather than subclassing.
+Keyboard Shortcuts (`?`) are documented in `ZenithKeyboardHelpContent` from
+`ZenithHotkeyData` (pan, Ctrl+arrows for civil time, N/P select, Escape) plus
+scroll-wheel FOV.
 
-## View Components
+## Deep-link query parameters
 
-### ZenithScreenView as Coordinator
+Public startup params in `zenithQueryParameters.ts` seed `ZenithModel`
+(and overlay preferences where noted):
 
-The screen view demonstrates layout using `layoutBounds`, night-sky fill from
-`ZenithColors.ts`, and a `ResetAllButton` wired to `model.reset()`. Replace the
-placeholder title with a dome / sky-projection Node that reads observer
-latitude, longitude, and local sidereal time.
+| Param | Meaning | Example |
+|---|---|---|
+| `lat` | Observer latitude (°N) | `?lat=-33.9` |
+| `lon` | Observer longitude (°E) | `&lon=151.2` |
+| `date` | Civil UTC (`Date.parse` / ISO-8601) | `&date=2024-12-21T10:00:00Z` |
+| `fov` | Horizontal FOV (°) | `&fov=60` |
+| `magLimit` | Faintest visible magnitude | `&magLimit=4` |
+| `showStarLabels` | Star name labels (also Preferences) | `&showStarLabels=false` |
+| `showConstellations` | Stick figures (also Preferences) | `&showConstellations=true` |
+| `showPlanetLabels` | Planet labels (also Preferences) | `&showPlanetLabels=false` |
 
-### Reference renderer
+Example classroom link:
+`index.html?lat=-33.9&lon=151.2&date=2024-12-21T10:00:00Z&fov=60&magLimit=4`
 
-`reference/stellarium-web-engine/` holds Stellarium Web Engine sources for
-ideas on projection math and sky drawing. Do not import that tree into the
-sim bundle; reimplement patterns in SceneryStack (Path / Canvas / WebGL).
+## Deferred
 
-## Next steps
-
-1. Implement a `PlanetariumDomeNode` (or similar) under `src/zenith-screen/view/`
-2. Wire latitude / longitude / LST controls with `SimPanel` + a11y strings
-3. Add star catalog data under `public/` or `src/` and project it each frame
-4. Grow `currentDetailsContent` into a live `DerivedProperty` over model state
+- Accurate angular disc sizes / Moon phase / Saturn rings
+- Planetary moons, eclipses, HiPS imagery
+- Full IAU constellation set (classroom subset ships today)
+- Circumpolar / rise–set cues for a selected object

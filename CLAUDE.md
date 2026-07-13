@@ -4,10 +4,11 @@ Sim-specific context for AI assistants. General SceneryStack guidance: [OpenPhys
 
 ## Project
 
-SceneryStack planetarium renderer for the night sky. Forked from
-`TemplateSingleSim`. Observer location and local sidereal time live in
-`ZenithModel`; the dome / sky projection Node belongs in
-`ZenithScreenView`. For multi-screen sims, see `doc/multi-screen.md`.
+SceneryStack first-person planetarium renderer for the night sky. Forked from
+`TemplateSingleSim`. Observer location, civil time (LST derived), and look/FOV
+state live in `ZenithModel`; `PlanetariumSkyNode` projects the bright-star
+catalog and solar-system bodies (`astronomy-engine`). For multi-screen sims, see
+`doc/multi-screen.md`.
 
 Upstream reference material (not shipped with the sim):
 `reference/stellarium-web-engine/` — Stellarium Web Engine sources for
@@ -24,8 +25,17 @@ projection and sky-rendering ideas.
 | `src/zenith-screen/ZenithScreen.ts` | Screen wrapper |
 | `src/zenith-screen/model/ZenithModel.ts` | Simulation state and logic |
 | `src/zenith-screen/view/ZenithScreenView.ts` | Visual nodes, layout, `screenSummaryContent` + `pdomOrder` |
+| `src/zenith-screen/view/PlanetariumSkyNode.ts` | First-person FOV star / ground / grid renderer |
+| `src/zenith-screen/view/PlanetariumPlanetsNode.ts` | Sun / Moon / planet discs + labels |
+| `src/zenith-screen/view/attachPlanetariumInteraction.ts` | Drag / keyboard pan + Ctrl-time + wheel FOV |
+| `src/zenith-screen/model/BrightStarCatalog.ts` | ~4103-star RA/Dec/mag catalog |
+| `src/zenith-screen/model/SolarSystemBodies.ts` | Planet display metadata (`planets.ini`) |
+| `src/common/sky/SkyCoordinates.ts` | Equatorial ↔ horizontal transforms |
+| `src/common/sky/PlanetEphemeris.ts` | `astronomy-engine` ephemeris wrapper |
 | `src/zenith-screen/view/ZenithScreenSummaryContent.ts` | Accessible screen summary (reference a11y pattern) |
 | `src/zenith-screen/view/ZenithKeyboardHelpContent.ts` | Keyboard-help dialog content |
+| `src/common/ZenithHotkeyData.ts` | Planetarium HotkeyData (listeners + help dialog) |
+| `src/preferences/zenithQueryParameters.ts` | Public deep-link params (`lat`, `lon`, `date`, `fov`, `magLimit`) |
 | `src/common/SimPanel.ts` | Pre-themed `Panel` wrapper (uses `ZenithColors` automatically) |
 | `src/common/SimButtonOptions.ts` | Flat button-appearance option bundles + light-control-surface combo-box options |
 | `src/common/TimeModel.ts` | Composable play/pause + elapsed-time model for animated sims |

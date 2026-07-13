@@ -3,13 +3,15 @@
  *
  * Custom preferences UI shown in Preferences → Simulation. Controls are bound
  * to ZenithPreferencesModel Properties (whose initial values come from
- * zenithQueryParameters).
+ * zenithQueryParameters). These overlays outlive Reset All.
  */
 
+import type { BooleanProperty } from "scenerystack/axon";
 import { Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
 import { Checkbox } from "scenerystack/sun";
 import type { Tandem } from "scenerystack/tandem";
+import { LIGHT_SURFACE_TEXT_FILL } from "../common/SimButtonOptions.js";
 import { StringManager } from "../i18n/StringManager.js";
 import ZenithColors from "../ZenithColors.js";
 import ZenithNamespace from "../ZenithNamespace.js";
@@ -21,27 +23,50 @@ export class ZenithPreferencesNode extends VBox {
 
     const header = new Text(prefStrings.titleStringProperty, {
       font: new PhetFont({ size: 18, weight: "bold" }),
-      fill: ZenithColors.textColorProperty,
+      fill: LIGHT_SURFACE_TEXT_FILL,
     });
 
-    const exampleToggleCheckbox = new Checkbox(
-      preferencesModel.exampleToggleProperty,
-      new Text(prefStrings.exampleToggleStringProperty, {
-        font: new PhetFont(14),
-        fill: ZenithColors.textColorProperty,
-      }),
-      {
-        checkboxColor: ZenithColors.textColorProperty,
-        checkboxColorBackground: ZenithColors.panelBackgroundColorProperty,
-        spacing: 8,
-        ...(tandem && { tandem: tandem.createTandem("exampleToggleCheckbox") }),
-      },
-    );
+    const checkbox = (
+      property: BooleanProperty,
+      labelProperty: typeof prefStrings.showStarLabelsStringProperty,
+      tandemName: string,
+    ): Checkbox =>
+      new Checkbox(
+        property,
+        new Text(labelProperty, {
+          font: new PhetFont(14),
+          fill: LIGHT_SURFACE_TEXT_FILL,
+          maxWidth: 280,
+        }),
+        {
+          checkboxColor: LIGHT_SURFACE_TEXT_FILL,
+          checkboxColorBackground: ZenithColors.controlSurfaceColorProperty,
+          spacing: 8,
+          ...(tandem && { tandem: tandem.createTandem(tandemName) }),
+        },
+      );
 
     super({
       align: "left",
       spacing: 12,
-      children: [header, exampleToggleCheckbox],
+      children: [
+        header,
+        checkbox(
+          preferencesModel.showStarLabelsProperty,
+          prefStrings.showStarLabelsStringProperty,
+          "showStarLabelsCheckbox",
+        ),
+        checkbox(
+          preferencesModel.showConstellationsProperty,
+          prefStrings.showConstellationsStringProperty,
+          "showConstellationsCheckbox",
+        ),
+        checkbox(
+          preferencesModel.showPlanetLabelsProperty,
+          prefStrings.showPlanetLabelsStringProperty,
+          "showPlanetLabelsCheckbox",
+        ),
+      ],
     });
   }
 }

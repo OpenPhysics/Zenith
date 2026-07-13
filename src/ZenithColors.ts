@@ -82,12 +82,157 @@ const ZenithColors = {
   }),
 
   /**
-   * Horizon / ground tone beneath the planetarium dome.
+   * Horizon / ground tone beneath the planetarium FOV.
    * Deep silhouette in default mode; soft gray in projector mode.
    */
   horizonColorProperty: new ProfileColorProperty(ZenithNamespace, "horizon", {
     default: "#0a101c",
     projector: "#d0d0d0",
+  }),
+
+  /**
+   * Night-sky fill for the first-person sky panel (above the horizon).
+   * Used as the dark end of the solar-altitude twilight gradient.
+   */
+  skyPanelColorProperty: new ProfileColorProperty(ZenithNamespace, "skyPanel", {
+    default: "#070b18",
+    projector: "#e8eef8",
+  }),
+
+  /**
+   * Night horizon tone near alt=0 in the twilight gradient.
+   */
+  skyNightHorizonColorProperty: new ProfileColorProperty(ZenithNamespace, "skyNightHorizon", {
+    default: "#0c1424",
+    projector: "#d0d8e8",
+  }),
+
+  /**
+   * Daytime zenith blue when the Sun is well above the horizon.
+   */
+  skyDayZenithColorProperty: new ProfileColorProperty(ZenithNamespace, "skyDayZenith", {
+    default: "#4a90d9",
+    projector: "#9ec5f0",
+  }),
+
+  /**
+   * Daytime horizon blue (lighter / hazier than zenith).
+   */
+  skyDayHorizonColorProperty: new ProfileColorProperty(ZenithNamespace, "skyDayHorizon", {
+    default: "#a8c8e8",
+    projector: "#c8daf0",
+  }),
+
+  /**
+   * Warm civil-twilight horizon accent (sunrise / sunset cue).
+   */
+  skyTwilightHorizonColorProperty: new ProfileColorProperty(ZenithNamespace, "skyTwilightHorizon", {
+    default: "#e09050",
+    projector: "#d08040",
+  }),
+
+  /**
+   * Ground band below the horizon line in the FOV panel (night).
+   */
+  groundColorProperty: new ProfileColorProperty(ZenithNamespace, "ground", {
+    default: "#121820",
+    projector: "#c8c8c8",
+  }),
+
+  /**
+   * Daytime ground band below the horizon.
+   */
+  groundDayColorProperty: new ProfileColorProperty(ZenithNamespace, "groundDay", {
+    default: "#3a4a38",
+    projector: "#8a9a78",
+  }),
+
+  /** Label text for constellation names in the FOV. */
+  constellationLabelColorProperty: new ProfileColorProperty(ZenithNamespace, "constellationLabel", {
+    default: "#9ab8d8",
+    projector: "#335577",
+  }),
+
+  /**
+   * Alt/az grid ticks and meridian stroke in the FOV panel.
+   */
+  gridColorProperty: new ProfileColorProperty(ZenithNamespace, "grid", {
+    default: "#5a7a9a",
+    projector: "#666666",
+  }),
+
+  // ── Solar-system body fills (from planets.ini RGB; projector = darkened) ─────
+  sunColorProperty: new ProfileColorProperty(ZenithNamespace, "sun", {
+    default: "#fafaf7",
+    projector: "#c4a000",
+  }),
+  moonColorProperty: new ProfileColorProperty(ZenithNamespace, "moon", {
+    default: "#fafbf7",
+    projector: "#888888",
+  }),
+  mercuryColorProperty: new ProfileColorProperty(ZenithNamespace, "mercury", {
+    default: "#faf6e9",
+    projector: "#8a7a5a",
+  }),
+  venusColorProperty: new ProfileColorProperty(ZenithNamespace, "venus", {
+    default: "#faf5df",
+    projector: "#b89a40",
+  }),
+  marsColorProperty: new ProfileColorProperty(ZenithNamespace, "mars", {
+    default: "#ffc480",
+    projector: "#a05020",
+  }),
+  jupiterColorProperty: new ProfileColorProperty(ZenithNamespace, "jupiter", {
+    default: "#fafbee",
+    projector: "#9a8050",
+  }),
+  saturnColorProperty: new ProfileColorProperty(ZenithNamespace, "saturn", {
+    default: "#faf3db",
+    projector: "#9a8540",
+  }),
+  uranusColorProperty: new ProfileColorProperty(ZenithNamespace, "uranus", {
+    default: "#d5f5ff",
+    projector: "#4080a0",
+  }),
+  neptuneColorProperty: new ProfileColorProperty(ZenithNamespace, "neptune", {
+    default: "#7094ff",
+    projector: "#3040a0",
+  }),
+
+  /** Label text for planet name tags in the FOV. */
+  planetLabelColorProperty: new ProfileColorProperty(ZenithNamespace, "planetLabel", {
+    default: "#e8eef8",
+    projector: "#1a1a1a",
+  }),
+
+  /** Label text for named bright stars in the FOV. */
+  starLabelColorProperty: new ProfileColorProperty(ZenithNamespace, "starLabel", {
+    default: "#c8d8f0",
+    projector: "#333333",
+  }),
+
+  /** Stroke for constellation stick figures. */
+  constellationColorProperty: new ProfileColorProperty(ZenithNamespace, "constellation", {
+    default: "#6a90c0",
+    projector: "#557799",
+  }),
+
+  /** Stroke for the local meridian overlay. */
+  meridianColorProperty: new ProfileColorProperty(ZenithNamespace, "meridian", {
+    default: "#90c0e8",
+    projector: "#336699",
+  }),
+
+  /** Stroke for the equatorial RA/Dec grid. */
+  equatorialGridColorProperty: new ProfileColorProperty(ZenithNamespace, "equatorialGrid", {
+    default: "#3a5a7a",
+    projector: "#8899aa",
+  }),
+
+  /** Highlight ring around the selected sky object. */
+  selectionColorProperty: new ProfileColorProperty(ZenithNamespace, "selection", {
+    default: "#ffd060",
+    projector: "#b07000",
   }),
 
   // ── Light control surfaces ───────────────────────────────────────────────────

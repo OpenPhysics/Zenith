@@ -35,6 +35,7 @@ onReadyToLaunch(() => {
       name: stringManager.getScreenNames().planetariumStringProperty,
       tandem: Tandem.ROOT.createTandem("planetariumScreen"),
       backgroundColorProperty: ZenithColors.backgroundColorProperty,
+      preferences: simPreferences,
     }),
   ];
 

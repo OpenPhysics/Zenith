@@ -11,21 +11,137 @@
  * 2. If it should also be user-editable at runtime, surface it as a preference
  *    in ZenithPreferencesModel (initialize that Property from this query parameter).
  *
- * Usage: append e.g. `?exampleToggle=true` to the sim URL.
+ * Usage: append e.g. `?lat=-33.9&showConstellations=true` to the sim URL.
  */
 
 import { logGlobal } from "scenerystack/phet-core";
 import { QueryStringMachine } from "scenerystack/query-string-machine";
+import {
+  DEFAULT_CIVIL_TIME_MS,
+  DEFAULT_FIELD_OF_VIEW_DEG,
+  DEFAULT_LATITUDE_DEG,
+  DEFAULT_LONGITUDE_DEG,
+  DEFAULT_MAGNITUDE_LIMIT,
+  DEFAULT_SHOW_CONSTELLATIONS,
+  DEFAULT_SHOW_PLANET_LABELS,
+  DEFAULT_SHOW_STAR_LABELS,
+  FIELD_OF_VIEW_RANGE,
+  LATITUDE_RANGE,
+  LONGITUDE_RANGE,
+  MAGNITUDE_LIMIT_RANGE,
+} from "../SimConstants.js";
 import ZenithNamespace from "../ZenithNamespace.js";
+
+/**
+ * Returns true when `value` is empty/null (use sim default) or a parseable civil date.
+ * Used by QueryStringMachine `isValidValue` for the `date` parameter.
+ * `StringType` from QueryStringMachine includes `null`, so accept that here.
+ */
+export function isValidCivilDateQueryParam(value: string | null): boolean {
+  if (value === null || value === "") {
+    return true;
+  }
+  return !Number.isNaN(Date.parse(value));
+}
+
+/**
+ * Parses a civil-date query string to UTC ms, or null when empty / invalid.
+ */
+export function parseCivilDateQueryParam(value: string | null): number | null {
+  if (value === null || value === "") {
+    return null;
+  }
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
+ * Resolves the civil-time seed for ZenithModel from the `date` query parameter.
+ * Empty / missing → DEFAULT_CIVIL_TIME_MS.
+ */
+export function resolveCivilTimeMsFromQuery(value: string | null): number {
+  return parseCivilDateQueryParam(value) ?? DEFAULT_CIVIL_TIME_MS;
+}
 
 const zenithQueryParameters = QueryStringMachine.getAll({
   /**
-   * Example public boolean parameter. Replace with real sim-specific parameters,
-   * or remove if the sim has none.
+   * Observer latitude in degrees (+N / −S). Example: `?lat=-33.9`.
    */
-  exampleToggle: {
+  lat: {
+    type: "number",
+    defaultValue: DEFAULT_LATITUDE_DEG,
+    isValidValue: (value: number) => value >= LATITUDE_RANGE.min && value <= LATITUDE_RANGE.max,
+    public: true,
+  },
+
+  /**
+   * Observer longitude in degrees (+E / −W). Example: `?lon=151.2`.
+   */
+  lon: {
+    type: "number",
+    defaultValue: DEFAULT_LONGITUDE_DEG,
+    isValidValue: (value: number) => value >= LONGITUDE_RANGE.min && value <= LONGITUDE_RANGE.max,
+    public: true,
+  },
+
+  /**
+   * Civil UTC timestamp (`Date.parse` / ISO-8601). Empty string uses the sim default.
+   * Example: `?date=2024-12-21T10:00:00Z`.
+   */
+  date: {
+    type: "string",
+    defaultValue: "",
+    isValidValue: isValidCivilDateQueryParam,
+    public: true,
+  },
+
+  /**
+   * Horizontal field of view in degrees. Example: `?fov=60`.
+   */
+  fov: {
+    type: "number",
+    defaultValue: DEFAULT_FIELD_OF_VIEW_DEG,
+    isValidValue: (value: number) => value >= FIELD_OF_VIEW_RANGE.min && value <= FIELD_OF_VIEW_RANGE.max,
+    public: true,
+  },
+
+  /**
+   * Faintest visible star magnitude. Example: `?magLimit=4`.
+   */
+  magLimit: {
+    type: "number",
+    defaultValue: DEFAULT_MAGNITUDE_LIMIT,
+    isValidValue: (value: number) => value >= MAGNITUDE_LIMIT_RANGE.min && value <= MAGNITUDE_LIMIT_RANGE.max,
+    public: true,
+  },
+
+  /**
+   * Whether curated bright-star name labels are drawn.
+   * Seeds Preferences → Simulation. Example: `?showStarLabels=false`.
+   */
+  showStarLabels: {
     type: "boolean",
-    defaultValue: false,
+    defaultValue: DEFAULT_SHOW_STAR_LABELS,
+    public: true,
+  },
+
+  /**
+   * Whether classroom constellation stick figures are drawn.
+   * Seeds Preferences → Simulation. Example: `?showConstellations=true`.
+   */
+  showConstellations: {
+    type: "boolean",
+    defaultValue: DEFAULT_SHOW_CONSTELLATIONS,
+    public: true,
+  },
+
+  /**
+   * Whether preferred planet name labels are drawn.
+   * Seeds Preferences → Simulation. Example: `?showPlanetLabels=false`.
+   */
+  showPlanetLabels: {
+    type: "boolean",
+    defaultValue: DEFAULT_SHOW_PLANET_LABELS,
     public: true,
   },
 });
@@ -34,5 +150,6 @@ ZenithNamespace.register("zenithQueryParameters", zenithQueryParameters);
 
 // Log query parameters (for the console / PhET-iO).
 logGlobal("phet.chipper.queryParameters");
+logGlobal("phet.zenith.zenithQueryParameters");
 
 export default zenithQueryParameters;
