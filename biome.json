@@ -169,6 +169,12 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/zenith-screen/model/DeepStarCatalog.ts"],
+      "formatter": {
+        "enabled": false
+      }
     }
   ],
   "javascript": {

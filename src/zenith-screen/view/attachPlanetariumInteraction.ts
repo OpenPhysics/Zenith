@@ -13,7 +13,6 @@
 import { PatternStringProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { clamp, Vector2 } from "scenerystack/dot";
 import { DragListener, KeyboardListener, type Node } from "scenerystack/scenery";
-import { allPlanetEquatorialStates } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
 import ZenithHotkeyData from "../../common/ZenithHotkeyData.js";
 import { StringManager } from "../../i18n/StringManager.js";
@@ -28,7 +27,7 @@ import {
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import type { PlanetariumSkyNode } from "./PlanetariumSkyNode.js";
-import { wrapLookAzimuth } from "./PlanetariumSkyNode.js";
+import { wrapLookAzimuth } from "./SkyProjection.js";
 
 /** Max pointer travel (view px) still treated as a click rather than a pan. */
 const CLICK_MOVE_THRESHOLD_PX = 6;
@@ -53,48 +52,26 @@ const announceSelection = (target: Node, model: ZenithModel, selected: SelectedS
 
   const bodies = StringManager.getInstance().getBodies();
   const stars = StringManager.getInstance().getStars();
-  let name = "";
-  let mag = 0;
-  let raHours = 0;
-  let decDeg = 0;
-  let altDeg = 0;
-  let azDeg = 0;
+
+  const eq = model.equatorialOfSelected(selected);
+  if (!eq) {
+    return;
+  }
+  const name =
+    selected.kind === "star"
+      ? (stars[`${selected.id}StringProperty` as keyof typeof stars] as TReadOnlyProperty<string>).value
+      : (bodies[`${selected.id}StringProperty` as keyof typeof bodies] as TReadOnlyProperty<string>).value;
 
   const lat = model.latitudeProperty.value;
-  const lon = model.longitudeProperty.value;
   const lst = model.localSiderealTimeHoursProperty.value;
-  const civilMs = model.civilTimeMsProperty.value;
-
-  if (selected.kind === "star") {
-    const key = `${selected.id}StringProperty` as keyof typeof stars;
-    name = (stars[key] as TReadOnlyProperty<string>).value;
-    mag = selected.mag;
-    raHours = selected.raHours;
-    decDeg = selected.decDeg;
-    const horiz = equatorialToHorizontal(raHours, decDeg, lat, lst);
-    altDeg = horiz.altDeg;
-    azDeg = horiz.azDeg;
-  } else {
-    const bodyKey = `${selected.id}StringProperty` as keyof typeof bodies;
-    name = (bodies[bodyKey] as TReadOnlyProperty<string>).value;
-    const entry = allPlanetEquatorialStates(civilMs, lat, lon).find((s) => s.bodyId === selected.id);
-    if (!entry) {
-      return;
-    }
-    mag = entry.state.mag;
-    raHours = entry.state.raHours;
-    decDeg = entry.state.decDeg;
-    const horiz = equatorialToHorizontal(raHours, decDeg, lat, lst);
-    altDeg = horiz.altDeg;
-    azDeg = horiz.azDeg;
-  }
+  const { altDeg, azDeg } = equatorialToHorizontal(eq.raHours, eq.decDeg, lat, lst);
 
   target.addAccessibleResponse(
     new PatternStringProperty(a11y.selectedAnnouncementStringProperty, {
       name,
-      mag: formatMag(mag),
-      ra: formatHours(raHours),
-      dec: formatDeg(decDeg),
+      mag: formatMag(eq.mag),
+      ra: formatHours(eq.raHours),
+      dec: formatDeg(eq.decDeg),
       alt: formatDeg(altDeg),
       az: formatDeg(azDeg),
     }),

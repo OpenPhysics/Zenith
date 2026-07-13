@@ -201,7 +201,15 @@
     "selectedObject": "{{name}}",
     "selectedMag": "mag {{mag}}",
     "selectedEquatorial": "AD {{ra}} h, Déc {{dec}}°",
-    "selectedHorizontal": "alt {{alt}}°, az {{az}}°"
+    "selectedHorizontal": "alt {{alt}}°, az {{az}}°",
+    "selectedRise": "Se lève dans {{time}} (az {{az}}°)",
+    "selectedSet": "Se couche dans {{time}} (az {{az}}°)",
+    "selectedTransit": "Passe au méridien dans {{time}} (alt {{alt}}°)",
+    "selectedCircumpolar": "Circumpolaire — ne se couche jamais",
+    "selectedNeverRises": "Reste sous l'horizon",
+    "showEcliptic": "Afficher l'écliptique",
+    "showCelestialEquator": "Afficher l'équateur céleste",
+    "showObjectPath": "Afficher la trajectoire de l'objet"
   },
   "a11y": {
     "screenSummary": {
@@ -242,7 +250,12 @@
       "trueScaleBodies": "Utiliser les tailles angulaires réelles pour les disques des planètes. Le Soleil et la Lune sont toujours à l'échelle réelle.",
       "showPlanetLabels": "Afficher les noms des planètes",
       "showStarLabels": "Afficher les noms des étoiles brillantes",
-      "showConstellations": "Afficher les figures de constellations"
+      "showConstellations": "Afficher les figures de constellations",
+      "showEcliptic": "Afficher l'écliptique, la trajectoire annuelle du Soleil",
+      "showCelestialEquator": "Afficher l'équateur céleste",
+      "showObjectPath": "Afficher la trajectoire diurne de l'objet sélectionné",
+      "measureTool": "Outil de distance angulaire",
+      "measureToolHelp": "Cliquez deux points ou objets pour mesurer l'angle entre eux. Cliquez le ciel vide pour effacer."
     }
   },
   "keyboardHelp": {
@@ -264,6 +277,7 @@
     "title": "Simulation",
     "showStarLabels": "Afficher les noms des étoiles",
     "showConstellations": "Afficher les lignes de constellations",
-    "showPlanetLabels": "Afficher les noms des planètes"
+    "showPlanetLabels": "Afficher les noms des planètes",
+    "deepStarCatalog": "Catalogue d'étoiles plus profond (étoiles plus faibles jusqu'à mag 7.5)"
   }
 }

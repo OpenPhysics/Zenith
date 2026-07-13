@@ -8,10 +8,10 @@
 import { DerivedProperty, Multilink, PatternStringProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
 import { Node, Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
-import { allPlanetEquatorialStates, type PlanetBodyId } from "../../common/sky/PlanetEphemeris.js";
-import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
+import type { PlanetBodyId } from "../../common/sky/PlanetEphemeris.js";
+import { equatorialToHorizontal, riseSetInfo, solarHoursUntilLst } from "../../common/sky/SkyCoordinates.js";
 import { StringManager } from "../../i18n/StringManager.js";
-import { CONTROL_FONT_SIZE, CONTROL_PANEL_WIDTH } from "../../SimConstants.js";
+import { CONTROL_FONT_SIZE, CONTROL_PANEL_WIDTH, SIDEREAL_HOURS_PER_SOLAR_HOUR } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
@@ -76,38 +76,87 @@ const objectName = (
 };
 
 const buildCoords = (
+  model: ZenithModel,
   selected: SelectedSkyObject | null,
-  civilMs: number,
   lat: number,
-  lon: number,
   lst: number,
 ): SelectionCoords => {
   if (!selected) {
     return { kind: "none", mag: 0, raHours: 0, decDeg: 0, altDeg: 0, azDeg: 0 };
   }
-  if (selected.kind === "star") {
-    const { altDeg, azDeg } = equatorialToHorizontal(selected.raHours, selected.decDeg, lat, lst);
-    return {
-      kind: "star",
-      mag: selected.mag,
-      raHours: selected.raHours,
-      decDeg: selected.decDeg,
-      altDeg,
-      azDeg,
-    };
-  }
-  const entry = allPlanetEquatorialStates(civilMs, lat, lon).find((s) => s.bodyId === selected.id);
-  if (!entry) {
+  const eq = model.equatorialOfSelected(selected);
+  if (!eq) {
     return { kind: "none", mag: 0, raHours: 0, decDeg: 0, altDeg: 0, azDeg: 0 };
   }
-  const { altDeg, azDeg } = equatorialToHorizontal(entry.state.raHours, entry.state.decDeg, lat, lst);
+  const { altDeg, azDeg } = equatorialToHorizontal(eq.raHours, eq.decDeg, lat, lst);
   return {
-    kind: "planet",
-    mag: entry.state.mag,
-    raHours: entry.state.raHours,
-    decDeg: entry.state.decDeg,
+    kind: selected.kind,
+    mag: eq.mag,
+    raHours: eq.raHours,
+    decDeg: eq.decDeg,
     altDeg,
     azDeg,
+  };
+};
+
+/** Formats a positive duration in hours as "Hh Mm" (or "Mm" under an hour). */
+const formatDuration = (hours: number): string => {
+  const totalMin = Math.max(0, Math.round(hours * 60));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
+type Visibility = {
+  kind: "none" | "risesSets" | "circumpolar" | "neverRises";
+  riseInHours: number;
+  riseAzDeg: number;
+  setInHours: number;
+  setAzDeg: number;
+  transitInHours: number;
+  transitAltDeg: number;
+};
+
+const NO_VISIBILITY: Visibility = {
+  kind: "none",
+  riseInHours: 0,
+  riseAzDeg: 0,
+  setInHours: 0,
+  setAzDeg: 0,
+  transitInHours: 0,
+  transitAltDeg: 0,
+};
+
+/** When each event next happens for the selected object, relative to the current LST. */
+const buildVisibility = (
+  model: ZenithModel,
+  selected: SelectedSkyObject | null,
+  lat: number,
+  lst: number,
+): Visibility => {
+  if (!selected) {
+    return NO_VISIBILITY;
+  }
+  const eq = model.equatorialOfSelected(selected);
+  if (!eq) {
+    return NO_VISIBILITY;
+  }
+  const info = riseSetInfo(eq.raHours, eq.decDeg, lat);
+  const transitInHours = solarHoursUntilLst(lst, info.transitLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR);
+  if (info.band === "neverRises") {
+    return { ...NO_VISIBILITY, kind: "neverRises" };
+  }
+  if (info.band === "circumpolar" || info.riseLstHours === null || info.setLstHours === null) {
+    return { ...NO_VISIBILITY, kind: "circumpolar", transitInHours, transitAltDeg: info.transitAltitudeDeg };
+  }
+  return {
+    kind: "risesSets",
+    riseInHours: solarHoursUntilLst(lst, info.riseLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR),
+    riseAzDeg: info.riseAzimuthDeg ?? 0,
+    setInHours: solarHoursUntilLst(lst, info.setLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR),
+    setAzDeg: info.setAzimuthDeg ?? 0,
+    transitInHours,
+    transitAltDeg: info.transitAltitudeDeg,
   };
 };
 
@@ -132,12 +181,11 @@ export class SelectedObjectReadout extends Node {
     const coordsProperty = new DerivedProperty(
       [
         model.selectedObjectProperty,
-        model.civilTimeMsProperty,
+        model.skySnapshotProperty,
         model.latitudeProperty,
-        model.longitudeProperty,
         model.localSiderealTimeHoursProperty,
       ],
-      (selected, civilMs, lat, lon, lst) => buildCoords(selected, civilMs, lat, lon, lst),
+      (selected, _snapshot, lat, lst) => buildCoords(model, selected, lat, lst),
     );
 
     const magProperty = new DerivedProperty([coordsProperty], (s) => (s.kind === "none" ? "—" : formatMag(s.mag)));
@@ -175,6 +223,51 @@ export class SelectedObjectReadout extends Node {
       { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
     );
 
+    // ── Rise / set / transit (event times relative to now, at the sidereal rate) ──
+    const visibilityProperty = new DerivedProperty(
+      [
+        model.selectedObjectProperty,
+        model.skySnapshotProperty,
+        model.latitudeProperty,
+        model.localSiderealTimeHoursProperty,
+      ],
+      (selected, _snapshot, lat, lst) => buildVisibility(model, selected, lat, lst),
+    );
+
+    const riseTimeProperty = new DerivedProperty([visibilityProperty], (v) => formatDuration(v.riseInHours));
+    const riseAzProperty = new DerivedProperty([visibilityProperty], (v) => formatDeg(v.riseAzDeg));
+    const setTimeProperty = new DerivedProperty([visibilityProperty], (v) => formatDuration(v.setInHours));
+    const setAzProperty = new DerivedProperty([visibilityProperty], (v) => formatDeg(v.setAzDeg));
+    const transitTimeProperty = new DerivedProperty([visibilityProperty], (v) => formatDuration(v.transitInHours));
+    const transitAltProperty = new DerivedProperty([visibilityProperty], (v) => formatDeg(v.transitAltDeg));
+
+    const eventTextOptions = { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth };
+    const riseText = new Text(
+      new PatternStringProperty(controls.selectedRiseStringProperty, { time: riseTimeProperty, az: riseAzProperty }),
+      eventTextOptions,
+    );
+    const setText = new Text(
+      new PatternStringProperty(controls.selectedSetStringProperty, { time: setTimeProperty, az: setAzProperty }),
+      eventTextOptions,
+    );
+    const transitText = new Text(
+      new PatternStringProperty(controls.selectedTransitStringProperty, {
+        time: transitTimeProperty,
+        alt: transitAltProperty,
+      }),
+      eventTextOptions,
+    );
+    const circumpolarText = new Text(controls.selectedCircumpolarStringProperty, eventTextOptions);
+    const neverRisesText = new Text(controls.selectedNeverRisesStringProperty, eventTextOptions);
+
+    visibilityProperty.link((v) => {
+      riseText.visible = v.kind === "risesSets";
+      setText.visible = v.kind === "risesSets";
+      transitText.visible = v.kind === "risesSets" || v.kind === "circumpolar";
+      circumpolarText.visible = v.kind === "circumpolar";
+      neverRisesText.visible = v.kind === "neverRises";
+    });
+
     coordsProperty.link((coords) => {
       const hasSelection = coords.kind !== "none";
       noneText.visible = !hasSelection;
@@ -188,7 +281,18 @@ export class SelectedObjectReadout extends Node {
       new VBox({
         spacing: 2,
         align: "left",
-        children: [noneText, nameText, magText, eqText, hzText],
+        children: [
+          noneText,
+          nameText,
+          magText,
+          eqText,
+          hzText,
+          transitText,
+          riseText,
+          setText,
+          circumpolarText,
+          neverRisesText,
+        ],
       }),
     );
   }

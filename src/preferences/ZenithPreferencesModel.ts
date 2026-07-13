@@ -21,6 +21,12 @@ export class ZenithPreferencesModel {
   /** Whether preferred planet name labels are drawn. */
   public readonly showPlanetLabelsProperty: BooleanProperty;
 
+  /**
+   * Whether the deeper Hipparcos star catalog (mag <= 7.5) replaces the
+   * bright-star catalog during rendering.
+   */
+  public readonly deepStarCatalogProperty: BooleanProperty;
+
   public constructor(tandem?: Tandem) {
     this.showStarLabelsProperty = new BooleanProperty(zenithQueryParameters.showStarLabels, {
       ...(tandem && { tandem: tandem.createTandem("showStarLabelsProperty") }),
@@ -31,12 +37,16 @@ export class ZenithPreferencesModel {
     this.showPlanetLabelsProperty = new BooleanProperty(zenithQueryParameters.showPlanetLabels, {
       ...(tandem && { tandem: tandem.createTandem("showPlanetLabelsProperty") }),
     });
+    this.deepStarCatalogProperty = new BooleanProperty(zenithQueryParameters.deepStarCatalog, {
+      ...(tandem && { tandem: tandem.createTandem("deepStarCatalogProperty") }),
+    });
   }
 
   public reset(): void {
     this.showStarLabelsProperty.reset();
     this.showConstellationsProperty.reset();
     this.showPlanetLabelsProperty.reset();
+    this.deepStarCatalogProperty.reset();
   }
 }
 

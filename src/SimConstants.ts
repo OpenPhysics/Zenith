@@ -90,6 +90,14 @@ export const SIDEREAL_HOURS_PER_SIM_SECOND = CIVIL_HOURS_PER_SIM_SECOND;
 export const HOURS_PER_SIDEREAL_DAY = 24;
 
 /**
+ * Sidereal hours advanced per solar (civil) hour. One mean solar day is
+ * 1.00273790935 sidereal days, so local sidereal time runs this much faster
+ * than the civil clock. Used to convert a requested sidereal-time advance into
+ * the civil-time step that produces it.
+ */
+export const SIDEREAL_HOURS_PER_SOLAR_HOUR = 1.00273790935;
+
+/**
  * Default civil epoch: 2024-06-21 18:00 UTC (≈ noon MDT, summer solstice).
  * Documented for ephemeris tests and Reset All.
  */
@@ -133,8 +141,23 @@ export const FOV_MARGIN_DEG = 2;
 /** Default magnitude cull — fainter stars are hidden. */
 export const DEFAULT_MAGNITUDE_LIMIT = 5.5;
 
-/** Allowed magnitude-limit range. */
-export const MAGNITUDE_LIMIT_RANGE = new Range(1, 5.8);
+/**
+ * Faintest visual magnitude in the deeper (Hipparcos) star catalog. Used as the
+ * upper bound of {@link MAGNITUDE_LIMIT_RANGE} and to document the catalog depth.
+ */
+export const DEEP_STAR_CATALOG_MAG_LIMIT = 7.5;
+
+/**
+ * Faintest magnitude reachable on the magnitude-limit slider. Matches the deep
+ * Hipparcos catalog's cutoff (DeepStarCatalog), so enabling the deeper catalog
+ * in Preferences reveals stars down to this limit. The bundled BrightStarCatalog
+ * only reaches mag 5.8, so the range above 5.8 has no effect until the deeper
+ * catalog is turned on.
+ */
+export const MAGNITUDE_LIMIT_RANGE = new Range(1, DEEP_STAR_CATALOG_MAG_LIMIT);
+
+/** Default: brighter catalog only (BrightStarCatalog, mag <= 5.8). */
+export const DEFAULT_DEEP_STAR_CATALOG = false;
 
 /** Degrees of look pan per pixel of pointer drag. */
 export const LOOK_PAN_DEG_PER_PIXEL = 0.25;

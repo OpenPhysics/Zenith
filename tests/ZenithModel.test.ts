@@ -87,6 +87,27 @@ describe("ZenithModel", () => {
     expect(model.localSiderealTimeHoursProperty.value).toBeLessThan(24);
   });
 
+  it("advances local sidereal time by the requested sidereal hours", () => {
+    const lst0 = model.localSiderealTimeHoursProperty.value;
+    model.advanceSiderealTime(6);
+    // GAST is not perfectly linear, so allow a couple of arcseconds of slack.
+    const expected = (((lst0 + 6) % 24) + 24) % 24;
+    expect(model.localSiderealTimeHoursProperty.value).toBeCloseTo(expected, 3);
+  });
+
+  it("returns the star field to place after one full sidereal day, with civil time ~23h56m", () => {
+    const lst0 = model.localSiderealTimeHoursProperty.value;
+    const civil0 = model.civilTimeMsProperty.value;
+    model.advanceSiderealTime(24);
+    const civilHoursAdvanced = (model.civilTimeMsProperty.value - civil0) / (3600 * 1000);
+    // A sidereal day is ~23h56m of civil time — the sidereal-vs-solar distinction.
+    expect(civilHoursAdvanced).toBeGreaterThan(23.9);
+    expect(civilHoursAdvanced).toBeLessThan(24);
+    // LST (and therefore the stars) returns to place far more precisely than the
+    // ~3.9 min error a naive 24h civil scrub would leave.
+    expect(model.localSiderealTimeHoursProperty.value).toBeCloseTo(lst0, 2);
+  });
+
   it("reset restores look, FOV, session toggles, civil time, and observer state", () => {
     model.latitudeProperty.value = 10;
     model.longitudeProperty.value = 20;

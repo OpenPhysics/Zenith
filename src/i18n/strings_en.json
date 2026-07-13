@@ -201,12 +201,20 @@
     "selectedObject": "{{name}}",
     "selectedMag": "mag {{mag}}",
     "selectedEquatorial": "RA {{ra}} h, Dec {{dec}}°",
-    "selectedHorizontal": "alt {{alt}}°, az {{az}}°"
+    "selectedHorizontal": "alt {{alt}}°, az {{az}}°",
+    "selectedRise": "Rises in {{time}} (az {{az}}°)",
+    "selectedSet": "Sets in {{time}} (az {{az}}°)",
+    "selectedTransit": "Transits in {{time}} (alt {{alt}}°)",
+    "selectedCircumpolar": "Circumpolar — never sets",
+    "selectedNeverRises": "Stays below the horizon",
+    "showEcliptic": "Show ecliptic",
+    "showCelestialEquator": "Show celestial equator",
+    "showObjectPath": "Show selected object path"
   },
   "a11y": {
     "screenSummary": {
       "playArea": "The play area shows a first-person planetarium view of the sky for an observer on Earth, including bright stars and solar-system bodies. Sky color follows the Sun's altitude from day through twilight to night.",
-      "controlArea": "The control area has a collapsible panel overlaid on the sky with location, latitude, longitude, date and time presets, year/month/day/hour jump controls, play/pause, field of view, display options, and a Reset All button. Preferences → Simulation controls star names, constellation lines, and planet names.",
+      "controlArea": "The control area has a collapsible panel overlaid on the sky with location, latitude, longitude, date and time presets, year/month/day/hour jump controls, play/pause, field of view, display options, and a Reset All button. Preferences → Simulation controls star names, constellation lines, planet names, and a deeper star catalog.",
       "interactionHint": "Drag the sky to look around, click or press N or P to select a star or planet for details, use the wheel to zoom, and press play to watch the sky rotate as time advances."
     },
     "currentDetails": "Latitude {{latitude}}°, looking toward azimuth {{azimuth}}° at altitude {{altitude}}°, local sidereal time {{lst}} h. The simulation is {{playState}}.",
@@ -242,7 +250,12 @@
       "trueScaleBodies": "Use true angular sizes for planet discs. The Sun and Moon are always true scale.",
       "showPlanetLabels": "Show planet name labels",
       "showStarLabels": "Show bright star name labels",
-      "showConstellations": "Show constellation stick figures"
+      "showConstellations": "Show constellation stick figures",
+      "showEcliptic": "Show the ecliptic, the Sun's yearly path",
+      "showCelestialEquator": "Show the celestial equator",
+      "showObjectPath": "Show the daily path of the selected object across the sky",
+      "measureTool": "Angular distance tool",
+      "measureToolHelp": "Click two points or objects to measure the angle between them. Click empty sky to clear."
     }
   },
   "keyboardHelp": {
@@ -264,6 +277,7 @@
     "title": "Simulation",
     "showStarLabels": "Show star names",
     "showConstellations": "Show constellation lines",
-    "showPlanetLabels": "Show planet names"
+    "showPlanetLabels": "Show planet names",
+    "deepStarCatalog": "Deeper star catalog (fainter stars to mag 7.5)"
   }
 }

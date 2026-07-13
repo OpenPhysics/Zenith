@@ -164,3 +164,69 @@ export const declinationBand = (decDeg: number, latitudeDeg: number): Declinatio
   }
   return "risesAndSets";
 };
+
+/** Rise / set / transit geometry for one object at one latitude (no refraction). */
+export type RiseSetInfo = {
+  band: DeclinationBand;
+  /** Local sidereal time (hours) of upper transit = the object's RA. */
+  transitLstHours: number;
+  /** Altitude (degrees) at upper transit. */
+  transitAltitudeDeg: number;
+  /** LST and azimuth of rise / set; null unless the object rises and sets. */
+  riseLstHours: number | null;
+  setLstHours: number | null;
+  riseAzimuthDeg: number | null;
+  setAzimuthDeg: number | null;
+};
+
+/**
+ * Geometric rise / set / transit for an object at (raHours, decDeg) seen from
+ * `latitudeDeg`. Rise and set are the LSTs at which the object crosses the true
+ * (unrefracted) horizon; transit is upper culmination (H = 0, LST = RA).
+ */
+export const riseSetInfo = (raHours: number, decDeg: number, latitudeDeg: number): RiseSetInfo => {
+  const band = declinationBand(decDeg, latitudeDeg);
+  const transitAltitudeDeg = altitudeAtHourAngle(decDeg, latitudeDeg, 0);
+  const base: RiseSetInfo = {
+    band,
+    transitLstHours: normalizeHours(raHours),
+    transitAltitudeDeg,
+    riseLstHours: null,
+    setLstHours: null,
+    riseAzimuthDeg: null,
+    setAzimuthDeg: null,
+  };
+  if (band !== "risesAndSets") {
+    return base;
+  }
+  // Hour angle where alt = 0: cos H0 = −tan(lat)·tan(dec).
+  const cosH0 = -Math.tan(degToRad(latitudeDeg)) * Math.tan(degToRad(decDeg));
+  const h0Hours = radiansToHours(Math.acos(Math.max(-1, Math.min(1, cosH0))));
+  const riseLstHours = normalizeHours(raHours - h0Hours);
+  const setLstHours = normalizeHours(raHours + h0Hours);
+  return {
+    ...base,
+    riseLstHours,
+    setLstHours,
+    riseAzimuthDeg: equatorialToHorizontal(raHours, decDeg, latitudeDeg, riseLstHours).azDeg,
+    setAzimuthDeg: equatorialToHorizontal(raHours, decDeg, latitudeDeg, setLstHours).azDeg,
+  };
+};
+
+/**
+ * Solar (civil) hours from now until local sidereal time next reaches
+ * `targetLstHours`, given the current LST and how fast LST runs vs the civil
+ * clock. Always in [0, 24/rate) — the next occurrence.
+ */
+export const solarHoursUntilLst = (
+  currentLstHours: number,
+  targetLstHours: number,
+  siderealHoursPerSolarHour: number,
+): number => normalizeHours(targetLstHours - currentLstHours) / siderealHoursPerSolarHour;
+
+/** Angular separation (degrees) between two equatorial directions. */
+export const angularSeparationDeg = (raHoursA: number, decDegA: number, raHoursB: number, decDegB: number): number => {
+  const a = raDecToVector3(raHoursA, decDegA);
+  const b = raDecToVector3(raHoursB, decDegB);
+  return radToDeg(Math.acos(Math.max(-1, Math.min(1, a.dot(b)))));
+};

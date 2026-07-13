@@ -17,11 +17,10 @@
  */
 
 import type { TReadOnlyProperty } from "scenerystack/axon";
-import { type Bounds2, clamp, Vector2 } from "scenerystack/dot";
+import { type Bounds2, clamp, type Vector2 } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { Circle, LinearGradient, Node, Path, Rectangle, Text } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
-import { allPlanetEquatorialStates } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal, normalizeDegrees } from "../../common/sky/SkyCoordinates.js";
 import { ASTRONOMICAL_TWILIGHT_DEG, effectiveStarVisibility, twilightSkyColors } from "../../common/sky/SkyTwilight.js";
 import { StringManager } from "../../i18n/StringManager.js";
@@ -38,7 +37,6 @@ import {
   EQUATORIAL_GRID_PARALLEL_DEC_MAX_DEG,
   EQUATORIAL_GRID_PARALLEL_DEC_MIN_DEG,
   EQUATORIAL_GRID_RA_STEP_HOURS,
-  FOV_MARGIN_DEG,
   SELECTION_HIT_RADIUS_PX,
   STAR_MAG_BRIGHT,
   STAR_RADIUS_MAX,
@@ -52,11 +50,13 @@ import {
   BRIGHT_STAR_RA_HOURS,
 } from "../model/BrightStarCatalog.js";
 import { CONSTELLATION_FIGURES, type ConstellationId, constellationStarById } from "../model/ConstellationLines.js";
+import { getDeepStarData } from "../model/DeepStarCatalog.js";
 import { NAMED_BRIGHT_STARS, namedStarById } from "../model/NamedBrightStars.js";
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
 import { solarSystemBodyVisual } from "../model/SolarSystemBodies.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import { PlanetariumPlanetsNode } from "./PlanetariumPlanetsNode.js";
+import { SkyProjection } from "./SkyProjection.js";
 
 const LABEL_FONT = new PhetFont(11);
 const GRID_LABEL_FONT = new PhetFont({ size: 11, weight: "bold" });
@@ -74,6 +74,16 @@ const GRID_LABEL_EDGE_INSET_PX = 14;
 const ALT_LABEL_LEFT_INSET_PX = 22;
 /** Az labels sit this far above the visible sky bottom (px). */
 const AZ_LABEL_BOTTOM_INSET_PX = 16;
+/** Extra radius (px) so the selection ring sits just outside the object disc. */
+const SELECTION_RING_PADDING_PX = 4;
+/** Altitude (degrees) at which the zenith marker is drawn (just shy of true zenith). */
+const ZENITH_MARKER_ALTITUDE_DEG = 89;
+/** Stars dimmer than this effective visibility are not click/keyboard selectable. */
+const STAR_SELECTABLE_MIN_VISIBILITY = 0.05;
+/** Constellation name labels appear only above this effective star visibility. */
+const CONSTELLATION_LABEL_MIN_VISIBILITY = 0.15;
+/** Below this effective star visibility, stars and constellation lines are not drawn. */
+const STAR_RENDER_MIN_VISIBILITY = 0.02;
 
 const formatRaTickLabel = (raHours: number): string => `${raHours}h`;
 
@@ -118,8 +128,7 @@ type HorizontalTickLabelNode = {
 export class PlanetariumSkyNode extends Node {
   private readonly model: ZenithModel;
   private bounds2: Bounds2;
-  private altMin = 0;
-  private altMax = 0;
+  private projection: SkyProjection;
 
   private readonly skyFill: Rectangle;
   private readonly groundFill: Path;
@@ -265,10 +274,7 @@ export class PlanetariumSkyNode extends Node {
       fill: ZenithColors.starColorProperty,
       pickable: false,
     });
-    this.planetsNode = new PlanetariumPlanetsNode(model, {
-      projectAltAz: (altDeg, azDeg) => this.projectAltAz(altDeg, azDeg),
-      degreesPerPixel: () => this.model.fieldOfViewDegProperty.value / Math.max(1, this.bounds2.width),
-    });
+    this.planetsNode = new PlanetariumPlanetsNode(model);
 
     const stars = StringManager.getInstance().getStars();
     const starNameProperty = (id: string): TReadOnlyProperty<string> => {
@@ -383,6 +389,7 @@ export class PlanetariumSkyNode extends Node {
       model.showPlanetLabelsProperty,
       model.showStarLabelsProperty,
       model.showConstellationsProperty,
+      model.deepStarCatalogProperty,
       model.magnitudeLimitProperty,
       model.selectedObjectProperty,
       ZenithColors.skyPanelColorProperty,
@@ -399,6 +406,7 @@ export class PlanetariumSkyNode extends Node {
       property.lazyLink(() => this.redraw());
     }
 
+    this.projection = this.buildProjection();
     this.redraw();
   }
 
@@ -441,12 +449,12 @@ export class PlanetariumSkyNode extends Node {
    * selectable set when the Sun washes them out.
    */
   public listSelectableObjectsInView(): SelectedSkyObject[] {
+    // Called from interaction outside the redraw cycle; refresh the projection.
+    this.projection = this.buildProjection();
     const lat = this.model.latitudeProperty.value;
-    const lon = this.model.longitudeProperty.value;
     const lst = this.model.localSiderealTimeHoursProperty.value;
     const hideBelowHorizon = this.model.showHorizonProperty.value;
     const magLimit = this.model.magnitudeLimitProperty.value;
-    const civilMs = this.model.civilTimeMsProperty.value;
     const starVisibility = effectiveStarVisibility(
       this.model.solarAltitudeDegProperty.value,
       this.model.showAtmosphereProperty.value,
@@ -466,7 +474,7 @@ export class PlanetariumSkyNode extends Node {
       ranked.push({ object, x: point.x, y: point.y });
     };
 
-    if (starVisibility >= 0.05) {
+    if (starVisibility >= STAR_SELECTABLE_MIN_VISIBILITY) {
       for (const star of NAMED_BRIGHT_STARS) {
         if (star.mag > magLimit) {
           continue;
@@ -487,8 +495,7 @@ export class PlanetariumSkyNode extends Node {
     }
 
     if (this.model.showPlanetsProperty.value) {
-      const states = allPlanetEquatorialStates(civilMs, lat, lon);
-      for (const entry of states) {
+      for (const entry of this.model.skySnapshotProperty.value.bodies) {
         const { altDeg, azDeg } = equatorialToHorizontal(entry.state.raHours, entry.state.decDeg, lat, lst);
         pushIfVisible({ kind: "planet", id: entry.bodyId }, altDeg, azDeg);
       }
@@ -499,61 +506,43 @@ export class PlanetariumSkyNode extends Node {
   }
 
   private projectSelectedObject(selected: SelectedSkyObject): Vector2 | null {
-    const lat = this.model.latitudeProperty.value;
-    const lon = this.model.longitudeProperty.value;
-    const lst = this.model.localSiderealTimeHoursProperty.value;
-    const civilMs = this.model.civilTimeMsProperty.value;
-
-    if (selected.kind === "star") {
-      const { altDeg, azDeg } = equatorialToHorizontal(selected.raHours, selected.decDeg, lat, lst);
-      return this.projectAltAz(altDeg, azDeg);
-    }
-    const entry = allPlanetEquatorialStates(civilMs, lat, lon).find((s) => s.bodyId === selected.id);
-    if (!entry) {
+    const eq = this.model.equatorialOfSelected(selected);
+    if (!eq) {
       return null;
     }
-    const { altDeg, azDeg } = equatorialToHorizontal(entry.state.raHours, entry.state.decDeg, lat, lst);
+    const { altDeg, azDeg } = equatorialToHorizontal(
+      eq.raHours,
+      eq.decDeg,
+      this.model.latitudeProperty.value,
+      this.model.localSiderealTimeHoursProperty.value,
+    );
     return this.projectAltAz(altDeg, azDeg);
   }
 
-  private updateAltitudeRange(): void {
-    const fovY = verticalFieldOfViewDeg(
-      this.model.fieldOfViewDegProperty.value,
-      this.bounds2.width,
-      this.bounds2.height,
-    );
-    const lookAlt = this.model.lookAltitudeDegProperty.value;
-    this.altMax = lookAlt + fovY / 2;
-    this.altMin = lookAlt - fovY / 2;
+  /** Builds a projection value object from the current look / FOV / bounds. */
+  private buildProjection(): SkyProjection {
+    return new SkyProjection({
+      bounds: this.bounds2,
+      lookAzimuthDeg: this.model.lookAzimuthDegProperty.value,
+      lookAltitudeDeg: this.model.lookAltitudeDegProperty.value,
+      fieldOfViewDeg: this.model.fieldOfViewDegProperty.value,
+    });
   }
 
   private azOffset(azDeg: number): number {
-    return ((azDeg - this.model.lookAzimuthDegProperty.value + 540) % 360) - 180;
+    return this.projection.azOffset(azDeg);
   }
 
   private azToX(azDeg: number): number {
-    const b = this.bounds2;
-    const fovX = this.model.fieldOfViewDegProperty.value;
-    const u = (this.azOffset(azDeg) + fovX / 2) / fovX;
-    return b.minX + u * b.width;
+    return this.projection.azToX(azDeg);
   }
 
   private altToY(altDeg: number): number {
-    const b = this.bounds2;
-    const v = (altDeg - this.altMin) / (this.altMax - this.altMin);
-    return b.maxY - v * b.height;
+    return this.projection.altToY(altDeg);
   }
 
   private projectAltAz(altDeg: number, azDeg: number): Vector2 | null {
-    const fovX = this.model.fieldOfViewDegProperty.value;
-    const dAz = this.azOffset(azDeg);
-    if (Math.abs(dAz) > fovX / 2 + FOV_MARGIN_DEG) {
-      return null;
-    }
-    if (altDeg < this.altMin - FOV_MARGIN_DEG || altDeg > this.altMax + FOV_MARGIN_DEG) {
-      return null;
-    }
-    return new Vector2(this.azToX(azDeg), this.altToY(altDeg));
+    return this.projection.project(altDeg, azDeg);
   }
 
   private starRadius(mag: number): number {
@@ -573,15 +562,16 @@ export class PlanetariumSkyNode extends Node {
 
     // Lines of constant altitude (horizontal parallels across the FOV).
     const altStart =
-      Math.ceil(Math.max(this.altMin, ALT_AZ_GRID_ALT_MIN_DEG) / ALT_AZ_GRID_ALT_STEP_DEG) * ALT_AZ_GRID_ALT_STEP_DEG;
-    for (let alt = altStart; alt <= this.altMax + 1e-9; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
+      Math.ceil(Math.max(this.projection.altMin, ALT_AZ_GRID_ALT_MIN_DEG) / ALT_AZ_GRID_ALT_STEP_DEG) *
+      ALT_AZ_GRID_ALT_STEP_DEG;
+    for (let alt = altStart; alt <= this.projection.altMax + 1e-9; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
       if (alt > ALT_AZ_GRID_ALT_MAX_DEG) {
         break;
       }
       if (hideBelowHorizon && alt < 0) {
         continue;
       }
-      if (alt < this.altMin || alt > this.altMax) {
+      if (alt < this.projection.altMin || alt > this.projection.altMax) {
         continue;
       }
       const y = this.altToY(alt);
@@ -639,7 +629,7 @@ export class PlanetariumSkyNode extends Node {
     hideBelowHorizon: boolean,
   ): void {
     const alt = tick.value;
-    if ((hideBelowHorizon && alt < 0) || alt < this.altMin || alt > this.altMax) {
+    if ((hideBelowHorizon && alt < 0) || alt < this.projection.altMin || alt > this.projection.altMax) {
       tick.label.visible = false;
       return;
     }
@@ -906,6 +896,28 @@ export class PlanetariumSkyNode extends Node {
     return shape;
   }
 
+  private drawStarInto(
+    shape: Shape,
+    raHours: number,
+    decDeg: number,
+    mag: number,
+    lat: number,
+    lst: number,
+    hideBelowHorizon: boolean,
+  ): void {
+    const { altDeg, azDeg } = equatorialToHorizontal(raHours, decDeg, lat, lst);
+    if (hideBelowHorizon && altDeg < 0) {
+      return;
+    }
+    const point = this.projectAltAz(altDeg, azDeg);
+    if (!point) {
+      return;
+    }
+    const r = this.starRadius(mag);
+    shape.moveTo(point.x + r, point.y);
+    shape.arc(point.x, point.y, r, 0, Math.PI * 2);
+  }
+
   private redrawStars(): Shape {
     const shape = new Shape();
     const lat = this.model.latitudeProperty.value;
@@ -913,24 +925,34 @@ export class PlanetariumSkyNode extends Node {
     const magLimit = this.model.magnitudeLimitProperty.value;
     const hideBelowHorizon = this.model.showHorizonProperty.value;
 
-    for (let i = 0; i < BRIGHT_STAR_COUNT; i++) {
-      const mag = BRIGHT_STAR_MAG[i];
-      const ra = BRIGHT_STAR_RA_HOURS[i];
-      const dec = BRIGHT_STAR_DEC_DEG[i];
-      if (mag === undefined || ra === undefined || dec === undefined || mag > magLimit) {
-        continue;
+    if (this.model.deepStarCatalogProperty.value) {
+      const { data, count } = getDeepStarData();
+      for (let i = 0; i < count; i++) {
+        const mag = data[i * 3 + 2];
+        // Catalog is sorted ascending by magnitude, so stop early past the limit.
+        if (mag === undefined || mag > magLimit) {
+          break;
+        }
+        const ra = data[i * 3];
+        const dec = data[i * 3 + 1];
+        if (ra === undefined || dec === undefined) {
+          break;
+        }
+        this.drawStarInto(shape, ra, dec, mag, lat, lst, hideBelowHorizon);
       }
-      const { altDeg, azDeg } = equatorialToHorizontal(ra, dec, lat, lst);
-      if (hideBelowHorizon && altDeg < 0) {
-        continue;
+    } else {
+      for (let i = 0; i < BRIGHT_STAR_COUNT; i++) {
+        const mag = BRIGHT_STAR_MAG[i];
+        if (mag === undefined || mag > magLimit) {
+          continue;
+        }
+        const ra = BRIGHT_STAR_RA_HOURS[i];
+        const dec = BRIGHT_STAR_DEC_DEG[i];
+        if (ra === undefined || dec === undefined) {
+          continue;
+        }
+        this.drawStarInto(shape, ra, dec, mag, lat, lst, hideBelowHorizon);
       }
-      const point = this.projectAltAz(altDeg, azDeg);
-      if (!point) {
-        continue;
-      }
-      const r = this.starRadius(mag);
-      shape.moveTo(point.x + r, point.y);
-      shape.arc(point.x, point.y, r, 0, Math.PI * 2);
     }
     return shape;
   }
@@ -999,7 +1021,7 @@ export class PlanetariumSkyNode extends Node {
     for (const { node, azDeg } of [...mainCardinals, ...intercardinals]) {
       placeInFov(node, CARDINAL_LABEL_ALTITUDE_DEG, azDeg);
     }
-    placeInFov(labels.zenith, 89, this.model.lookAzimuthDegProperty.value);
+    placeInFov(labels.zenith, ZENITH_MARKER_ALTITUDE_DEG, this.model.lookAzimuthDegProperty.value);
 
     if (!show) {
       return;
@@ -1053,32 +1075,25 @@ export class PlanetariumSkyNode extends Node {
     }
 
     const lat = this.model.latitudeProperty.value;
-    const lon = this.model.longitudeProperty.value;
     const lst = this.model.localSiderealTimeHoursProperty.value;
-    const civilMs = this.model.civilTimeMsProperty.value;
     const hideBelowHorizon = this.model.showHorizonProperty.value;
 
-    let altDeg = 0;
-    let azDeg = 0;
-    let radius = 8;
+    const eq = this.model.equatorialOfSelected(selected);
+    if (!eq) {
+      this.selectionRing.visible = false;
+      return;
+    }
+    const { altDeg, azDeg } = equatorialToHorizontal(eq.raHours, eq.decDeg, lat, lst);
 
+    let radius: number;
     if (selected.kind === "star") {
-      const horiz = equatorialToHorizontal(selected.raHours, selected.decDeg, lat, lst);
-      altDeg = horiz.altDeg;
-      azDeg = horiz.azDeg;
-      radius = this.starRadius(selected.mag) + 4;
+      radius = this.starRadius(selected.mag) + SELECTION_RING_PADDING_PX;
     } else {
-      const states = allPlanetEquatorialStates(civilMs, lat, lon);
-      const entry = states.find((s) => s.bodyId === selected.id);
-      if (!entry) {
-        this.selectionRing.visible = false;
-        return;
-      }
-      const horiz = equatorialToHorizontal(entry.state.raHours, entry.state.decDeg, lat, lst);
-      altDeg = horiz.altDeg;
-      azDeg = horiz.azDeg;
+      const state = this.model.skySnapshotProperty.value.byId.get(selected.id);
       const visual = solarSystemBodyVisual(selected.id);
-      radius = this.planetsNode.discRadiusPx(visual, entry.state.mag, entry.state.distAu) + 4;
+      radius = state
+        ? this.planetsNode.discRadiusPx(visual, state.mag, state.distAu, this.projection) + SELECTION_RING_PADDING_PX
+        : STAR_RADIUS_MAX + SELECTION_RING_PADDING_PX;
     }
 
     if (hideBelowHorizon && altDeg < 0) {
@@ -1108,7 +1123,7 @@ export class PlanetariumSkyNode extends Node {
     const hideBelowHorizon = this.model.showHorizonProperty.value;
 
     for (const { id, label } of this.constellationLabelNodes) {
-      if (!(show && starVisibility > 0.15)) {
+      if (!(show && starVisibility > CONSTELLATION_LABEL_MIN_VISIBILITY)) {
         label.visible = false;
         continue;
       }
@@ -1195,7 +1210,7 @@ export class PlanetariumSkyNode extends Node {
   }
 
   private redraw(): void {
-    this.updateAltitudeRange();
+    this.projection = this.buildProjection();
     this.redrawTwilightSky();
 
     const starVisibility = effectiveStarVisibility(
@@ -1213,7 +1228,8 @@ export class PlanetariumSkyNode extends Node {
     }
     this.redrawEquatorialGridLabels();
 
-    this.constellationPath.visible = this.model.showConstellationsProperty.value && starVisibility > 0.05;
+    this.constellationPath.visible =
+      this.model.showConstellationsProperty.value && starVisibility > STAR_RENDER_MIN_VISIBILITY;
     if (this.constellationPath.visible) {
       this.constellationPath.shape = this.constellationShape();
     }
@@ -1229,25 +1245,11 @@ export class PlanetariumSkyNode extends Node {
       this.meridianPath.shape = this.meridianShape();
     }
 
-    this.starsPath.shape = starVisibility > 0.02 ? this.redrawStars() : null;
-    this.planetsNode.redraw();
+    this.starsPath.shape = starVisibility > STAR_RENDER_MIN_VISIBILITY ? this.redrawStars() : null;
+    this.planetsNode.redraw(this.projection);
     this.redrawStarLabels();
     this.redrawConstellationLabels();
     this.redrawCardinals();
     this.redrawSelection();
   }
 }
-
-/** Wrap look azimuth into [0, 360). */
-export const wrapLookAzimuth = (azDeg: number): number => normalizeDegrees(azDeg);
-
-/**
- * Vertical FOV (degrees) matching horizontal degrees-per-pixel across the view.
- * Keeps az/alt screen scale isomorphic when zooming or changing aspect ratio.
- */
-export const verticalFieldOfViewDeg = (horizontalFovDeg: number, viewWidth: number, viewHeight: number): number => {
-  if (viewWidth <= 0) {
-    return horizontalFovDeg;
-  }
-  return horizontalFovDeg * (viewHeight / viewWidth);
-};

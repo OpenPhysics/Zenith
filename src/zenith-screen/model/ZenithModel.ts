@@ -15,8 +15,15 @@ import {
 } from "scenerystack/axon";
 import type { TModel } from "scenerystack/joist";
 import { TimeSpeed } from "scenerystack/scenery-phet";
-import { localSiderealTimeHours, planetEquatorialState } from "../../common/sky/PlanetEphemeris.js";
-import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
+import {
+  allPlanetEquatorialStates,
+  localSiderealTimeHours,
+  type MoonPhaseState,
+  moonPhaseState,
+  type PlanetBodyId,
+  type PlanetEquatorialState,
+} from "../../common/sky/PlanetEphemeris.js";
+import { type EquatorialCoordinates, equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
 import { TimeModel } from "../../common/TimeModel.js";
 import type { ZenithPreferencesModel } from "../../preferences/ZenithPreferencesModel.js";
 import zenithQueryParameters, { resolveCivilTimeMsFromQuery } from "../../preferences/zenithQueryParameters.js";
@@ -38,6 +45,7 @@ import {
   LONGITUDE_RANGE,
   LOOK_ALTITUDE_RANGE,
   MAGNITUDE_LIMIT_RANGE,
+  SIDEREAL_HOURS_PER_SOLAR_HOUR,
 } from "../../SimConstants.js";
 import { DEFAULT_EPOCH_PRESET, EPOCH_PRESET_CIVIL_MS, EpochPreset } from "./EpochPreset.js";
 import { DEFAULT_LOCATION_PRESET, LOCATION_PRESET_COORDS, LocationPreset } from "./LocationPreset.js";
@@ -50,6 +58,17 @@ const SPEED_MULTIPLIERS = new Map<TimeSpeed, number>([
 ]);
 
 const MS_PER_HOUR = 3600 * 1000;
+
+/**
+ * Single instantaneous ephemeris for the whole solar system at one civil time /
+ * observer, so every view consumer reads one computation instead of each
+ * recomputing all bodies through astronomy-engine.
+ */
+export type SkySnapshot = {
+  readonly bodies: ReadonlyArray<{ bodyId: PlanetBodyId; state: PlanetEquatorialState }>;
+  readonly byId: ReadonlyMap<PlanetBodyId, PlanetEquatorialState>;
+  readonly moonPhase: MoonPhaseState;
+};
 
 export class ZenithModel implements TModel {
   /** Play/pause + elapsed simulation time for sky animation. Starts playing. */
@@ -139,11 +158,25 @@ export class ZenithModel implements TModel {
    */
   public readonly showConstellationsProperty: BooleanProperty;
 
+  /**
+   * Whether the deeper Hipparcos star catalog (mag <= 7.5) replaces the
+   * bright-star catalog during rendering.
+   * Backed by Preferences → Simulation (outlives Reset All).
+   */
+  public readonly deepStarCatalogProperty: BooleanProperty;
+
   /** Hide stars fainter than this visual magnitude. */
   public readonly magnitudeLimitProperty: NumberProperty;
 
   /** Currently selected sky object, or null when nothing is selected. */
   public readonly selectedObjectProperty: Property<SelectedSkyObject | null>;
+
+  /**
+   * Instantaneous ephemeris of all solar-system bodies (plus Moon phase) for the
+   * current civil time and observer. The single source of truth every view reads
+   * so the ephemeris is computed once per time / location change, not per node.
+   */
+  public readonly skySnapshotProperty: TReadOnlyProperty<SkySnapshot>;
 
   /**
    * Solar altitude in degrees for the current observer / civil time.
@@ -196,14 +229,28 @@ export class ZenithModel implements TModel {
     this.showPlanetLabelsProperty = preferences.showPlanetLabelsProperty;
     this.showStarLabelsProperty = preferences.showStarLabelsProperty;
     this.showConstellationsProperty = preferences.showConstellationsProperty;
+    this.deepStarCatalogProperty = preferences.deepStarCatalogProperty;
     this.magnitudeLimitProperty = new NumberProperty(startMagLimit, {
       range: MAGNITUDE_LIMIT_RANGE,
     });
     this.selectedObjectProperty = new Property<SelectedSkyObject | null>(null);
+
+    this.skySnapshotProperty = new DerivedProperty(
+      [this.civilTimeMsProperty, this.latitudeProperty, this.longitudeProperty],
+      (civilMs, lat, lon): SkySnapshot => {
+        const bodies = allPlanetEquatorialStates(civilMs, lat, lon);
+        const byId = new Map<PlanetBodyId, PlanetEquatorialState>(bodies.map((b) => [b.bodyId, b.state]));
+        return { bodies, byId, moonPhase: moonPhaseState(civilMs) };
+      },
+    );
+
     this.solarAltitudeDegProperty = new DerivedProperty(
-      [this.civilTimeMsProperty, this.latitudeProperty, this.longitudeProperty, this.localSiderealTimeHoursProperty],
-      (civilMs, lat, lon, lst) => {
-        const sun = planetEquatorialState("sun", civilMs, lat, lon);
+      [this.skySnapshotProperty, this.latitudeProperty, this.localSiderealTimeHoursProperty],
+      (snapshot, lat, lst) => {
+        const sun = snapshot.byId.get("sun");
+        if (!sun) {
+          return 0;
+        }
         return equatorialToHorizontal(sun.raHours, sun.decDeg, lat, lst).altDeg;
       },
     );
@@ -275,11 +322,30 @@ export class ZenithModel implements TModel {
   }
 
   /**
-   * Advances time so the sky rotates by approximately `siderealHours`.
-   * Implemented as a civil-time scrub (close enough for teaching).
+   * Advances the clock so local sidereal time — and therefore the star field —
+   * moves by `siderealHours`. Because LST runs {@link SIDEREAL_HOURS_PER_SOLAR_HOUR}
+   * times faster than the civil clock, this advances civil time slightly less,
+   * so one full sidereal day (24 h) returns the stars exactly to place while the
+   * Sun lags ~3 min 56 s behind — the sidereal-vs-solar distinction itself.
    */
   public advanceSiderealTime(siderealHours: number): void {
-    this.advanceCivilTimeHours(siderealHours);
+    this.advanceCivilTimeHours(siderealHours / SIDEREAL_HOURS_PER_SOLAR_HOUR);
+  }
+
+  /**
+   * Resolves the current equatorial position and magnitude of a selected object.
+   * Stars carry fixed J2000 coordinates; planets are read from the ephemeris
+   * snapshot. Returns null when a selected planet is missing from the snapshot.
+   */
+  public equatorialOfSelected(selected: SelectedSkyObject): (EquatorialCoordinates & { mag: number }) | null {
+    if (selected.kind === "star") {
+      return { raHours: selected.raHours, decDeg: selected.decDeg, mag: selected.mag };
+    }
+    const state = this.skySnapshotProperty.value.byId.get(selected.id);
+    if (!state) {
+      return null;
+    }
+    return { raHours: state.raHours, decDeg: state.decDeg, mag: state.mag };
   }
 
   /** One step-forward press for TimeControlNode. */

@@ -11,16 +11,14 @@
  */
 
 import type { TReadOnlyProperty } from "scenerystack/axon";
-import { clamp, type Vector2 } from "scenerystack/dot";
+import { clamp } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { Circle, Node, Path, Text } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
 import { moonUnlitShape } from "../../common/sky/moonPhaseShape.js";
 import {
-  allPlanetEquatorialStates,
   angularDiameterToRadiusPx,
   apparentAngularDiameterDeg,
-  moonPhaseState,
   type PlanetBodyId,
 } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
@@ -29,6 +27,7 @@ import { MIN_ANGULAR_DISC_RADIUS_PX, STAR_MAG_BRIGHT } from "../../SimConstants.
 import ZenithColors from "../../ZenithColors.js";
 import { SOLAR_SYSTEM_BODIES, type SolarSystemBodyVisual } from "../model/SolarSystemBodies.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
+import type { SkyProjection } from "./SkyProjection.js";
 
 const LABEL_FONT = new PhetFont(11);
 const LABEL_OFFSET_X = 6;
@@ -58,25 +57,14 @@ type BodyNodes = {
   label: Text;
 };
 
-export type PlanetariumPlanetsNodeOptions = {
-  /** Projects horizontal coordinates into panel pixels; null if outside FOV. */
-  projectAltAz: (altDeg: number, azDeg: number) => Vector2 | null;
-  /** Horizontal degrees per view pixel (FOV / panel width). */
-  degreesPerPixel: () => number;
-};
-
 export class PlanetariumPlanetsNode extends Node {
   private readonly model: ZenithModel;
-  private readonly projectAltAz: PlanetariumPlanetsNodeOptions["projectAltAz"];
-  private readonly degreesPerPixel: PlanetariumPlanetsNodeOptions["degreesPerPixel"];
   private readonly bodyNodes: BodyNodes[];
 
-  public constructor(model: ZenithModel, options: PlanetariumPlanetsNodeOptions) {
+  public constructor(model: ZenithModel) {
     super({ pickable: false });
 
     this.model = model;
-    this.projectAltAz = options.projectAltAz;
-    this.degreesPerPixel = options.degreesPerPixel;
 
     const bodies = StringManager.getInstance().getBodies();
     const nameProperty = (id: PlanetBodyId): TReadOnlyProperty<string> => {
@@ -136,18 +124,18 @@ export class PlanetariumPlanetsNode extends Node {
    * Sun and Moon are always angular; planets are angular only when true-scale
    * is enabled.
    */
-  public discRadiusPx(visual: SolarSystemBodyVisual, mag: number, distAu: number): number {
+  public discRadiusPx(visual: SolarSystemBodyVisual, mag: number, distAu: number, projection: SkyProjection): number {
     const useAngular = visual.id === "sun" || visual.id === "moon" || this.model.trueScaleBodiesProperty.value;
     if (useAngular) {
       const diameterDeg = apparentAngularDiameterDeg(visual.radiusKm, distAu);
-      return angularDiameterToRadiusPx(diameterDeg, this.degreesPerPixel(), MIN_ANGULAR_DISC_RADIUS_PX);
+      return angularDiameterToRadiusPx(diameterDeg, projection.degreesPerPixel(), MIN_ANGULAR_DISC_RADIUS_PX);
     }
     const t = clamp((mag - STAR_MAG_BRIGHT) / (PLANET_MAG_FAINT - STAR_MAG_BRIGHT), 0, 1);
     return visual.maxDiscRadiusPx + (visual.minDiscRadiusPx - visual.maxDiscRadiusPx) * t;
   }
 
   /** Recompute disc positions from the current model / ephemeris state. */
-  public redraw(): void {
+  public redraw(projection: SkyProjection): void {
     const showPlanets = this.model.showPlanetsProperty.value;
     this.visible = showPlanets;
     if (!showPlanets) {
@@ -157,22 +145,20 @@ export class PlanetariumPlanetsNode extends Node {
     const showLabels = this.model.showPlanetLabelsProperty.value;
     const hideBelowHorizon = this.model.showHorizonProperty.value;
     const lat = this.model.latitudeProperty.value;
-    const lon = this.model.longitudeProperty.value;
     const lst = this.model.localSiderealTimeHoursProperty.value;
-    const civilMs = this.model.civilTimeMsProperty.value;
 
-    const states = allPlanetEquatorialStates(civilMs, lat, lon);
-    const phase = moonPhaseState(civilMs);
+    const snapshot = this.model.skySnapshotProperty.value;
+    const phase = snapshot.moonPhase;
 
     for (const { visual, discRoot, disc, moonShadow, label } of this.bodyNodes) {
-      const entry = states.find((s) => s.bodyId === visual.id);
-      if (!entry) {
+      const state = snapshot.byId.get(visual.id);
+      if (!state) {
         discRoot.visible = false;
         label.visible = false;
         continue;
       }
 
-      const { altDeg, azDeg } = equatorialToHorizontal(entry.state.raHours, entry.state.decDeg, lat, lst);
+      const { altDeg, azDeg } = equatorialToHorizontal(state.raHours, state.decDeg, lat, lst);
 
       if (hideBelowHorizon && altDeg < 0) {
         discRoot.visible = false;
@@ -180,14 +166,14 @@ export class PlanetariumPlanetsNode extends Node {
         continue;
       }
 
-      const point = this.projectAltAz(altDeg, azDeg);
+      const point = projection.project(altDeg, azDeg);
       if (!point) {
         discRoot.visible = false;
         label.visible = false;
         continue;
       }
 
-      const radius = this.discRadiusPx(visual, entry.state.mag, entry.state.distAu);
+      const radius = this.discRadiusPx(visual, state.mag, state.distAu, projection);
       disc.radius = radius;
       disc.centerX = 0;
       disc.centerY = 0;

@@ -66,6 +66,11 @@ export class ZenithPreferencesNode extends VBox {
           prefStrings.showPlanetLabelsStringProperty,
           "showPlanetLabelsCheckbox",
         ),
+        checkbox(
+          preferencesModel.deepStarCatalogProperty,
+          prefStrings.deepStarCatalogStringProperty,
+          "deepStarCatalogCheckbox",
+        ),
       ],
     });
   }

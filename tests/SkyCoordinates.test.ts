@@ -10,10 +10,13 @@
 import { describe, expect, it } from "vitest";
 import {
   altitudeAtHourAngle,
+  angularSeparationDeg,
   declinationBand,
   equatorialToHorizontal,
   equatorialToHorizonVector,
   horizontalToEquatorial,
+  riseSetInfo,
+  solarHoursUntilLst,
 } from "../src/common/sky/SkyCoordinates.js";
 
 describe("equatorialToHorizontal", () => {
@@ -123,5 +126,52 @@ describe("declinationBand", () => {
   it("flips circumpolar/never-rises in the southern hemisphere", () => {
     expect(declinationBand(-70, -40)).toBe("circumpolar");
     expect(declinationBand(70, -40)).toBe("neverRises");
+  });
+});
+
+describe("riseSetInfo", () => {
+  it("has an equatorial star rise due east and set due west with a 12h-wide arc", () => {
+    const info = riseSetInfo(6, 0, 40);
+    expect(info.band).toBe("risesAndSets");
+    // RA 6h, H0 = 6h ⇒ rise LST 0h, set LST 12h.
+    expect(info.riseLstHours).toBeCloseTo(0, 6);
+    expect(info.setLstHours).toBeCloseTo(12, 6);
+    expect(info.riseAzimuthDeg).toBeCloseTo(90, 4);
+    expect(info.setAzimuthDeg).toBeCloseTo(270, 4);
+    expect(info.transitLstHours).toBeCloseTo(6, 6);
+    expect(info.transitAltitudeDeg).toBeCloseTo(50, 6);
+  });
+
+  it("reports no rise/set for a circumpolar star but still a transit", () => {
+    const info = riseSetInfo(3, 80, 40);
+    expect(info.band).toBe("circumpolar");
+    expect(info.riseLstHours).toBeNull();
+    expect(info.setLstHours).toBeNull();
+    expect(info.transitAltitudeDeg).toBeCloseTo(50, 6); // 90 − (80 − 40)
+  });
+});
+
+describe("solarHoursUntilLst", () => {
+  it("converts an LST gap to civil hours using the sidereal rate", () => {
+    // Need LST to advance 6h; at ~1.00274 sidereal h per solar h that is slightly under 6 civil h.
+    expect(solarHoursUntilLst(0, 6, 1.00273790935)).toBeCloseTo(6 / 1.00273790935, 9);
+  });
+
+  it("wraps to the next occurrence when the target is behind current LST", () => {
+    expect(solarHoursUntilLst(23, 1, 1.00273790935)).toBeCloseTo(2 / 1.00273790935, 9);
+  });
+});
+
+describe("angularSeparationDeg", () => {
+  it("is zero for identical directions", () => {
+    expect(angularSeparationDeg(5, 20, 5, 20)).toBeCloseTo(0, 5);
+  });
+
+  it("is 90° for RA quadrature on the equator", () => {
+    expect(angularSeparationDeg(0, 0, 6, 0)).toBeCloseTo(90, 6);
+  });
+
+  it("matches the declination gap along a meridian", () => {
+    expect(angularSeparationDeg(4, 10, 4, 55)).toBeCloseTo(45, 6);
   });
 });

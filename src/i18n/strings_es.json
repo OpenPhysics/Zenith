@@ -201,7 +201,15 @@
     "selectedObject": "{{name}}",
     "selectedMag": "mag {{mag}}",
     "selectedEquatorial": "AR {{ra}} h, Dec {{dec}}°",
-    "selectedHorizontal": "alt {{alt}}°, az {{az}}°"
+    "selectedHorizontal": "alt {{alt}}°, az {{az}}°",
+    "selectedRise": "Sale dentro de {{time}} (az {{az}}°)",
+    "selectedSet": "Se pone dentro de {{time}} (az {{az}}°)",
+    "selectedTransit": "Culmina dentro de {{time}} (alt {{alt}}°)",
+    "selectedCircumpolar": "Circumpolar — nunca se pone",
+    "selectedNeverRises": "Permanece bajo el horizonte",
+    "showEcliptic": "Mostrar eclíptica",
+    "showCelestialEquator": "Mostrar ecuador celeste",
+    "showObjectPath": "Mostrar trayectoria del objeto"
   },
   "a11y": {
     "screenSummary": {
@@ -242,7 +250,12 @@
       "trueScaleBodies": "Usar tamaños angulares reales para los discos de los planetas. El Sol y la Luna siempre están a escala real.",
       "showPlanetLabels": "Mostrar etiquetas de planetas",
       "showStarLabels": "Mostrar etiquetas de estrellas brillantes",
-      "showConstellations": "Mostrar figuras de constelaciones"
+      "showConstellations": "Mostrar figuras de constelaciones",
+      "showEcliptic": "Mostrar la eclíptica, la trayectoria anual del Sol",
+      "showCelestialEquator": "Mostrar el ecuador celeste",
+      "showObjectPath": "Mostrar la trayectoria diaria del objeto seleccionado",
+      "measureTool": "Herramienta de distancia angular",
+      "measureToolHelp": "Haz clic en dos puntos u objetos para medir el ángulo entre ellos. Haz clic en el cielo vacío para borrar."
     }
   },
   "keyboardHelp": {
@@ -264,6 +277,7 @@
     "title": "Simulación",
     "showStarLabels": "Mostrar nombres de estrellas",
     "showConstellations": "Mostrar líneas de constelaciones",
-    "showPlanetLabels": "Mostrar nombres de planetas"
+    "showPlanetLabels": "Mostrar nombres de planetas",
+    "deepStarCatalog": "Catálogo de estrellas más profundo (estrellas más tenues hasta mag 7.5)"
   }
 }

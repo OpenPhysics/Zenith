@@ -157,3 +157,36 @@ Zenith is a teaching planetarium, not a full-sky survey tool:
 
 Those limits keep the interface focused on location, time, coordinates, and
 naked-eye sky motion.
+
+---
+
+## Accuracy & limitations
+
+Zenith aims for a transparent, fast model that is trustworthy near the present
+day rather than for research-grade astrometry. Where it trades precision for
+clarity:
+
+- **Stars use fixed J2000 coordinates.** Catalog positions are mean equatorial
+  RA/Dec for epoch J2000.0, applied as-is: no precession to the display date and
+  no proper motion. Near 2000–2050 the resulting drift is only about
+  arcminutes, but it grows for dates far from J2000 — precession alone moves
+  positions on the order of ~1° over ~70 years.
+- **Planets, Sun, and Moon share the star frame.** Their positions come from
+  `astronomy-engine`, requested in the J2000 (EQJ) frame so they stay internally
+  consistent with the fixed star catalog.
+- **A small frame mix in sidereal time.** Local sidereal time is Greenwich
+  *apparent* sidereal time (GAST) plus longitude, while star and planet
+  coordinates use the J2000 *mean* equinox. Combining an apparent-equinox hour
+  angle with mean-equinox coordinates introduces a sub-arcminute to arcminute
+  inconsistency — negligible for teaching.
+- **No atmospheric refraction.** Objects rise and set at true geometric altitude
+  0°, about 34 arcminutes later (rising) or earlier (setting) than the real,
+  refracted horizon.
+- **No nutation or stellar aberration.**
+- **Sky motion is true sidereal.** The advance-sky gesture and diurnal rotation
+  run at the sidereal rate; a sidereal day is about 3 min 56 s shorter than a
+  solar day.
+
+For research-grade positions a full ICRF→observed pipeline (precession,
+nutation, aberration, refraction — as in the bundled Stellarium Web Engine
+reference, `src/frames.c`) would be required.

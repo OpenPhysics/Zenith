@@ -5,7 +5,7 @@
  * degrees-per-pixel scale.
  */
 import { describe, expect, it } from "vitest";
-import { verticalFieldOfViewDeg } from "../src/zenith-screen/view/PlanetariumSkyNode.js";
+import { verticalFieldOfViewDeg } from "../src/zenith-screen/view/SkyProjection.js";
 
 describe("verticalFieldOfViewDeg", () => {
   it("matches horizontal FOV on a square view", () => {

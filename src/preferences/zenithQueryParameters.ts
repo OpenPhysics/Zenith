@@ -18,6 +18,7 @@ import { logGlobal } from "scenerystack/phet-core";
 import { QueryStringMachine } from "scenerystack/query-string-machine";
 import {
   DEFAULT_CIVIL_TIME_MS,
+  DEFAULT_DEEP_STAR_CATALOG,
   DEFAULT_FIELD_OF_VIEW_DEG,
   DEFAULT_LATITUDE_DEG,
   DEFAULT_LONGITUDE_DEG,
@@ -142,6 +143,17 @@ const zenithQueryParameters = QueryStringMachine.getAll({
   showPlanetLabels: {
     type: "boolean",
     defaultValue: DEFAULT_SHOW_PLANET_LABELS,
+    public: true,
+  },
+
+  /**
+   * Whether the deeper Hipparcos star catalog (mag <= 7.5, ~25,700 stars) is
+   * rendered in place of the bundled bright-star catalog. Seeds Preferences →
+   * Simulation. Example: `?deepStarCatalog=true`.
+   */
+  deepStarCatalog: {
+    type: "boolean",
+    defaultValue: DEFAULT_DEEP_STAR_CATALOG,
     public: true,
   },
 });
