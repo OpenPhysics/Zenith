@@ -97,7 +97,7 @@ const zenithQueryParameters = QueryStringMachine.getAll({
   },
 
   /**
-   * Horizontal field of view in degrees. Example: `?fov=60`.
+   * Horizontal field of view in degrees. Example: `?fov=90`.
    */
   fov: {
     type: "number",

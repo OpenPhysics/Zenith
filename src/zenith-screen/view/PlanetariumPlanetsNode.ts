@@ -120,15 +120,27 @@ export class PlanetariumPlanetsNode extends Node {
   }
 
   /**
-   * Screen radius (px) for a body at the current FOV / true-scale setting.
-   * Sun and Moon are always angular; planets are angular only when true-scale
-   * is enabled.
+   * Screen radius (px) for a body at the current true-scale setting. Sun and
+   * Moon are always angular; planets are angular only when true-scale is
+   * enabled. The stereographic scale varies with altitude, so angular sizing
+   * uses the local degrees-per-pixel at the body's altitude.
    */
-  public discRadiusPx(visual: SolarSystemBodyVisual, mag: number, distAu: number, projection: SkyProjection): number {
+  public discRadiusPx(
+    visual: SolarSystemBodyVisual,
+    mag: number,
+    distAu: number,
+    projection: SkyProjection,
+    altDeg: number,
+    azDeg: number,
+  ): number {
     const useAngular = visual.id === "sun" || visual.id === "moon" || this.model.trueScaleBodiesProperty.value;
     if (useAngular) {
       const diameterDeg = apparentAngularDiameterDeg(visual.radiusKm, distAu);
-      return angularDiameterToRadiusPx(diameterDeg, projection.degreesPerPixel(), MIN_ANGULAR_DISC_RADIUS_PX);
+      return angularDiameterToRadiusPx(
+        diameterDeg,
+        projection.degreesPerPixelAt(altDeg, azDeg),
+        MIN_ANGULAR_DISC_RADIUS_PX,
+      );
     }
     const t = clamp((mag - STAR_MAG_BRIGHT) / (PLANET_MAG_FAINT - STAR_MAG_BRIGHT), 0, 1);
     return visual.maxDiscRadiusPx + (visual.minDiscRadiusPx - visual.maxDiscRadiusPx) * t;
@@ -173,7 +185,7 @@ export class PlanetariumPlanetsNode extends Node {
         continue;
       }
 
-      const radius = this.discRadiusPx(visual, state.mag, state.distAu, projection);
+      const radius = this.discRadiusPx(visual, state.mag, state.distAu, projection, altDeg, azDeg);
       disc.radius = radius;
       disc.centerX = 0;
       disc.centerY = 0;

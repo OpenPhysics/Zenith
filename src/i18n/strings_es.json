@@ -186,6 +186,7 @@
     "magnitudeLimit": "Límite de magnitud",
     "localSiderealTime": "TSL: {{hours}} h",
     "civilTime": "UTC {{time}}",
+    "localSolarTime": "Hora solar local {{time}}",
     "showGrid": "Cuadrícula alt/az",
     "showCardinals": "Mostrar cardinales",
     "showMeridian": "Mostrar meridiano",
@@ -209,7 +210,9 @@
     "selectedNeverRises": "Permanece bajo el horizonte",
     "showEcliptic": "Mostrar eclíptica",
     "showCelestialEquator": "Mostrar ecuador celeste",
-    "showObjectPath": "Mostrar trayectoria del objeto"
+    "showObjectPath": "Mostrar trayectoria del objeto",
+    "measureSeparation": "{{deg}}°",
+    "onscreenHint": "Arrastra para mirar · clic para identificar · Mayús-clic para medir · rueda para acercar · ? para ayuda"
   },
   "a11y": {
     "screenSummary": {
@@ -222,6 +225,9 @@
     "playStatePaused": "en pausa",
     "selectedAnnouncement": "{{name}}, magnitud {{mag}}, ascensión recta {{ra}} horas, declinación {{dec}} grados, altitud {{alt}} grados, acimut {{az}} grados.",
     "selectionCleared": "Selección borrada.",
+    "measureFirstPoint": "Primer punto de medición establecido. Mayús-clic en un segundo punto para medir el ángulo entre ellos.",
+    "measureResult": "Separación angular {{deg}} grados.",
+    "measureCleared": "Medición borrada.",
     "controls": {
       "skyView": "Vista del cielo del planetario",
       "skyViewHelp": "Las flechas desplazan la vista. Mantén Control con las flechas para avanzar el tiempo civil. N y P ciclan estrellas y planetas en la vista. Escape borra la selección. La rueda cambia el campo de visión. Haz clic en una estrella o planeta para seleccionarla.",

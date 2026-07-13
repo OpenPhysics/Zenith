@@ -112,8 +112,8 @@ describe("ZenithModel", () => {
     model.latitudeProperty.value = 10;
     model.longitudeProperty.value = 20;
     model.lookAzimuthDegProperty.value = 90;
-    model.lookAltitudeDegProperty.value = 40;
-    model.fieldOfViewDegProperty.value = 60;
+    model.lookAltitudeDegProperty.value = 60;
+    model.fieldOfViewDegProperty.value = 80;
     model.showGridProperty.value = false;
     model.showPlanetsProperty.value = false;
     model.trueScaleBodiesProperty.value = true;
@@ -156,6 +156,25 @@ describe("ZenithModel", () => {
 
   it("derives solar altitude above 50° at Boulder near local noon on the June solstice", () => {
     expect(model.solarAltitudeDegProperty.value).toBeGreaterThan(50);
+  });
+
+  it("cycles measure endpoints and derives their angular separation", () => {
+    expect(model.measureSeparationDegProperty.value).toBeNull();
+    model.addMeasurePoint({ raHours: 0, decDeg: 0 });
+    expect(model.measureStartProperty.value).not.toBeNull();
+    expect(model.measureEndProperty.value).toBeNull();
+    expect(model.measureSeparationDegProperty.value).toBeNull();
+
+    model.addMeasurePoint({ raHours: 6, decDeg: 0 }); // 90° apart on the equator
+    expect(model.measureSeparationDegProperty.value).toBeCloseTo(90, 4);
+
+    // A third point starts a fresh measurement.
+    model.addMeasurePoint({ raHours: 12, decDeg: 0 });
+    expect(model.measureEndProperty.value).toBeNull();
+    expect(model.measureSeparationDegProperty.value).toBeNull();
+
+    model.clearMeasurement();
+    expect(model.measureStartProperty.value).toBeNull();
   });
 
   it("applies location presets to latitude and longitude", () => {

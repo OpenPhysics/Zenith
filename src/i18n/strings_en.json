@@ -186,6 +186,7 @@
     "magnitudeLimit": "Magnitude limit",
     "localSiderealTime": "LST: {{hours}} h",
     "civilTime": "UTC {{time}}",
+    "localSolarTime": "Local solar time {{time}}",
     "showGrid": "Show alt/az grid",
     "showCardinals": "Show cardinals",
     "showMeridian": "Show meridian",
@@ -209,7 +210,9 @@
     "selectedNeverRises": "Stays below the horizon",
     "showEcliptic": "Show ecliptic",
     "showCelestialEquator": "Show celestial equator",
-    "showObjectPath": "Show selected object path"
+    "showObjectPath": "Show selected object path",
+    "measureSeparation": "{{deg}}°",
+    "onscreenHint": "Drag to look · click to identify · Shift-click to measure · scroll to zoom · ? for help"
   },
   "a11y": {
     "screenSummary": {
@@ -222,6 +225,9 @@
     "playStatePaused": "paused",
     "selectedAnnouncement": "{{name}}, magnitude {{mag}}, right ascension {{ra}} hours, declination {{dec}} degrees, altitude {{alt}} degrees, azimuth {{az}} degrees.",
     "selectionCleared": "Selection cleared.",
+    "measureFirstPoint": "First measurement point set. Shift-click a second point to measure the angle between them.",
+    "measureResult": "Angular separation {{deg}} degrees.",
+    "measureCleared": "Measurement cleared.",
     "controls": {
       "skyView": "Planetarium sky view",
       "skyViewHelp": "Arrow keys pan the view. Hold Control with arrows to advance civil time. N and P cycle through stars and planets in view. Escape clears the selection. The wheel changes field of view. Click a star or planet to select it.",

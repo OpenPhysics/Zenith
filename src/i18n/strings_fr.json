@@ -186,6 +186,7 @@
     "magnitudeLimit": "Limite de magnitude",
     "localSiderealTime": "TSL : {{hours}} h",
     "civilTime": "UTC {{time}}",
+    "localSolarTime": "Heure solaire locale {{time}}",
     "showGrid": "Grille alt/az",
     "showCardinals": "Afficher les cardinaux",
     "showMeridian": "Afficher le méridien",
@@ -209,7 +210,9 @@
     "selectedNeverRises": "Reste sous l'horizon",
     "showEcliptic": "Afficher l'écliptique",
     "showCelestialEquator": "Afficher l'équateur céleste",
-    "showObjectPath": "Afficher la trajectoire de l'objet"
+    "showObjectPath": "Afficher la trajectoire de l'objet",
+    "measureSeparation": "{{deg}}°",
+    "onscreenHint": "Glisser pour regarder · cliquer pour identifier · Maj-clic pour mesurer · molette pour zoomer · ? pour l'aide"
   },
   "a11y": {
     "screenSummary": {
@@ -222,6 +225,9 @@
     "playStatePaused": "en pause",
     "selectedAnnouncement": "{{name}}, magnitude {{mag}}, ascension droite {{ra}} heures, déclinaison {{dec}} degrés, altitude {{alt}} degrés, azimut {{az}} degrés.",
     "selectionCleared": "Sélection effacée.",
+    "measureFirstPoint": "Premier point de mesure défini. Maj-cliquez un deuxième point pour mesurer l'angle entre eux.",
+    "measureResult": "Séparation angulaire {{deg}} degrés.",
+    "measureCleared": "Mesure effacée.",
     "controls": {
       "skyView": "Vue du ciel planétarium",
       "skyViewHelp": "Les flèches font pivoter la vue. Maintenez Contrôle avec les flèches pour avancer le temps civil. N et P parcourent les étoiles et planètes visibles. Échap efface la sélection. La molette change le champ de vision. Cliquez une étoile ou planète pour la sélectionner.",

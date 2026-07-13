@@ -115,28 +115,31 @@ export const CIVIL_DAY_RANGE = new Range(1, 31);
 /** UTC hour-of-day range for the civil date jump UI. */
 export const CIVIL_HOUR_RANGE = new Range(0, 23);
 
-// ── First-person planetarium FOV ──────────────────────────────────────────────
+// ── Aim-able first-person sky camera (stereographic projection) ───────────────
 
 /** Default look azimuth (degrees from North through East). Due south. */
 export const DEFAULT_LOOK_AZIMUTH_DEG = 180;
 
-/** Default look altitude at FOV center (degrees). */
-export const DEFAULT_LOOK_ALTITUDE_DEG = 25;
+/**
+ * Default look altitude at the view center (degrees). Tilted up so both the
+ * horizon and the zenith are in frame at the default field of view.
+ */
+export const DEFAULT_LOOK_ALTITUDE_DEG = 40;
 
-/** Allowed look altitude range (degrees). */
-export const LOOK_ALTITUDE_RANGE = new Range(-10, 89);
+/** Allowed look-altitude range (degrees): horizon-centered up to zenith-centered. */
+export const LOOK_ALTITUDE_RANGE = new Range(0, 90);
 
-/** Default horizontal field of view (degrees). */
-export const DEFAULT_FIELD_OF_VIEW_DEG = 90;
+/** Default horizontal field of view (degrees) — a wide fisheye. */
+export const DEFAULT_FIELD_OF_VIEW_DEG = 140;
 
 /** Allowed horizontal FOV range (degrees). */
-export const FIELD_OF_VIEW_RANGE = new Range(40, 120);
+export const FIELD_OF_VIEW_RANGE = new Range(50, 180);
 
-/** Fraction of panel height below the horizon line (ground). */
-export const GROUND_FRACTION = 0.15;
-
-/** Margin (degrees) outside the FOV before a star is culled. */
-export const FOV_MARGIN_DEG = 2;
+/**
+ * Sky directions farther than this from the view center (degrees) are culled;
+ * near the antipode the stereographic projection diverges to infinity.
+ */
+export const PROJECTION_CULL_DEG = 150;
 
 /** Default magnitude cull — fainter stars are hidden. */
 export const DEFAULT_MAGNITUDE_LIMIT = 5.5;
@@ -160,7 +163,7 @@ export const MAGNITUDE_LIMIT_RANGE = new Range(1, DEEP_STAR_CATALOG_MAG_LIMIT);
 export const DEFAULT_DEEP_STAR_CATALOG = false;
 
 /** Degrees of look pan per pixel of pointer drag. */
-export const LOOK_PAN_DEG_PER_PIXEL = 0.25;
+export const LOOK_PAN_DEG_PER_PIXEL = 0.2;
 
 /** Degrees of look pan per keyboard arrow press. */
 export const LOOK_PAN_KEYBOARD_STEP_DEG = 3;
@@ -210,9 +213,6 @@ export const DEFAULT_SHOW_CARDINALS = true;
 /** Horizon altitude (degrees) used for cardinal direction labels. */
 export const CARDINAL_LABEL_ALTITUDE_DEG = 2;
 
-/** Screen inset (px) when pinning an off-FOV cardinal to a panel edge. */
-export const CARDINAL_EDGE_INSET_PX = 10;
-
 /** Default: draw the local meridian arc. */
 export const DEFAULT_SHOW_MERIDIAN = true;
 
@@ -221,6 +221,21 @@ export const DEFAULT_SHOW_EQUATORIAL_GRID = false;
 
 /** Default: constellation stick figures off until the learner enables them. */
 export const DEFAULT_SHOW_CONSTELLATIONS = false;
+
+/** Default: ecliptic line off until the learner enables it. */
+export const DEFAULT_SHOW_ECLIPTIC = false;
+
+/** Default: celestial equator off until the learner enables it. */
+export const DEFAULT_SHOW_CELESTIAL_EQUATOR = false;
+
+/** Default: the selected object's diurnal path off until the learner enables it. */
+export const DEFAULT_SHOW_OBJECT_PATH = false;
+
+/** Ecliptic / celestial-equator great circles are sampled every this many degrees. */
+export const CELESTIAL_LINE_SAMPLE_STEP_DEG = 4;
+
+/** The selected object's diurnal path is sampled every this many degrees of hour angle. */
+export const OBJECT_PATH_SAMPLE_STEP_DEG = 4;
 
 /** Max screen-pixel distance for click-to-select a sky object. */
 export const SELECTION_HIT_RADIUS_PX = 18;
@@ -269,7 +284,6 @@ ZenithNamespace.register("SimConstants", {
   DEFAULT_LOOK_ALTITUDE_DEG,
   DEFAULT_FIELD_OF_VIEW_DEG,
   DEFAULT_MAGNITUDE_LIMIT,
-  GROUND_FRACTION,
   DEFAULT_SHOW_ATMOSPHERE,
   DEFAULT_SHOW_PLANETS,
   DEFAULT_TRUE_SCALE_BODIES,
@@ -278,7 +292,6 @@ ZenithNamespace.register("SimConstants", {
   DEFAULT_SHOW_STAR_LABELS,
   DEFAULT_SHOW_CARDINALS,
   CARDINAL_LABEL_ALTITUDE_DEG,
-  CARDINAL_EDGE_INSET_PX,
   DEFAULT_SHOW_MERIDIAN,
   DEFAULT_SHOW_EQUATORIAL_GRID,
   DEFAULT_SHOW_CONSTELLATIONS,

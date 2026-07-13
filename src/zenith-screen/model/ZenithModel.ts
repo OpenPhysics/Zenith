@@ -2,8 +2,9 @@
  * ZenithModel.ts
  *
  * Top-level model for the planetarium screen. Civil time drives ephemerides and
- * local sidereal time (via astronomy-engine GAST + longitude). Look / FOV state
- * is first-person camera; the view only observes these Properties.
+ * local sidereal time (via astronomy-engine GAST + longitude). Look direction
+ * (azimuth + altitude) and field of view form an aim-able first-person camera;
+ * the view only observes these Properties.
  */
 import {
   BooleanProperty,
@@ -23,7 +24,11 @@ import {
   type PlanetBodyId,
   type PlanetEquatorialState,
 } from "../../common/sky/PlanetEphemeris.js";
-import { type EquatorialCoordinates, equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
+import {
+  angularSeparationDeg,
+  type EquatorialCoordinates,
+  equatorialToHorizontal,
+} from "../../common/sky/SkyCoordinates.js";
 import { TimeModel } from "../../common/TimeModel.js";
 import type { ZenithPreferencesModel } from "../../preferences/ZenithPreferencesModel.js";
 import zenithQueryParameters, { resolveCivilTimeMsFromQuery } from "../../preferences/zenithQueryParameters.js";
@@ -36,8 +41,11 @@ import {
   DEFAULT_LOOK_AZIMUTH_DEG,
   DEFAULT_SHOW_ATMOSPHERE,
   DEFAULT_SHOW_CARDINALS,
+  DEFAULT_SHOW_CELESTIAL_EQUATOR,
+  DEFAULT_SHOW_ECLIPTIC,
   DEFAULT_SHOW_EQUATORIAL_GRID,
   DEFAULT_SHOW_MERIDIAN,
+  DEFAULT_SHOW_OBJECT_PATH,
   DEFAULT_SHOW_PLANETS,
   DEFAULT_TRUE_SCALE_BODIES,
   FIELD_OF_VIEW_RANGE,
@@ -165,11 +173,30 @@ export class ZenithModel implements TModel {
    */
   public readonly deepStarCatalogProperty: BooleanProperty;
 
+  /** Whether the ecliptic (the Sun's yearly path) is drawn. */
+  public readonly showEclipticProperty: BooleanProperty;
+
+  /** Whether the celestial equator (Dec 0°) is drawn. */
+  public readonly showCelestialEquatorProperty: BooleanProperty;
+
+  /** Whether the selected object's 24 h diurnal path across the sky is drawn. */
+  public readonly showObjectPathProperty: BooleanProperty;
+
   /** Hide stars fainter than this visual magnitude. */
   public readonly magnitudeLimitProperty: NumberProperty;
 
   /** Currently selected sky object, or null when nothing is selected. */
   public readonly selectedObjectProperty: Property<SelectedSkyObject | null>;
+
+  /**
+   * Angular-distance tool endpoints as fixed equatorial coordinates (so they
+   * track the stars as the sky rotates). Null until the learner places them.
+   */
+  public readonly measureStartProperty: Property<EquatorialCoordinates | null>;
+  public readonly measureEndProperty: Property<EquatorialCoordinates | null>;
+
+  /** Angular separation (degrees) between the two measure endpoints, or null. */
+  public readonly measureSeparationDegProperty: TReadOnlyProperty<number | null>;
 
   /**
    * Instantaneous ephemeris of all solar-system bodies (plus Moon phase) for the
@@ -221,6 +248,9 @@ export class ZenithModel implements TModel {
     this.showCardinalsProperty = new BooleanProperty(DEFAULT_SHOW_CARDINALS);
     this.showMeridianProperty = new BooleanProperty(DEFAULT_SHOW_MERIDIAN);
     this.showEquatorialGridProperty = new BooleanProperty(DEFAULT_SHOW_EQUATORIAL_GRID);
+    this.showEclipticProperty = new BooleanProperty(DEFAULT_SHOW_ECLIPTIC);
+    this.showCelestialEquatorProperty = new BooleanProperty(DEFAULT_SHOW_CELESTIAL_EQUATOR);
+    this.showObjectPathProperty = new BooleanProperty(DEFAULT_SHOW_OBJECT_PATH);
     this.showHorizonProperty = new BooleanProperty(true);
     this.showAtmosphereProperty = new BooleanProperty(DEFAULT_SHOW_ATMOSPHERE);
     this.showPlanetsProperty = new BooleanProperty(DEFAULT_SHOW_PLANETS);
@@ -234,6 +264,12 @@ export class ZenithModel implements TModel {
       range: MAGNITUDE_LIMIT_RANGE,
     });
     this.selectedObjectProperty = new Property<SelectedSkyObject | null>(null);
+    this.measureStartProperty = new Property<EquatorialCoordinates | null>(null);
+    this.measureEndProperty = new Property<EquatorialCoordinates | null>(null);
+    this.measureSeparationDegProperty = new DerivedProperty(
+      [this.measureStartProperty, this.measureEndProperty],
+      (a, b) => (a && b ? angularSeparationDeg(a.raHours, a.decDeg, b.raHours, b.decDeg) : null),
+    );
 
     this.skySnapshotProperty = new DerivedProperty(
       [this.civilTimeMsProperty, this.latitudeProperty, this.longitudeProperty],
@@ -357,6 +393,24 @@ export class ZenithModel implements TModel {
     this.selectedObjectProperty.value = null;
   }
 
+  /**
+   * Places the next angular-distance endpoint. The first point starts a
+   * measurement; the second completes it; a third starts a fresh one.
+   */
+  public addMeasurePoint(point: EquatorialCoordinates): void {
+    if (!this.measureStartProperty.value || this.measureEndProperty.value) {
+      this.measureStartProperty.value = point;
+      this.measureEndProperty.value = null;
+    } else {
+      this.measureEndProperty.value = point;
+    }
+  }
+
+  public clearMeasurement(): void {
+    this.measureStartProperty.value = null;
+    this.measureEndProperty.value = null;
+  }
+
   public reset(): void {
     this.timer.reset();
     this.timeSpeedProperty.reset();
@@ -375,6 +429,9 @@ export class ZenithModel implements TModel {
     this.showCardinalsProperty.reset();
     this.showMeridianProperty.reset();
     this.showEquatorialGridProperty.reset();
+    this.showEclipticProperty.reset();
+    this.showCelestialEquatorProperty.reset();
+    this.showObjectPathProperty.reset();
     this.showHorizonProperty.reset();
     this.showAtmosphereProperty.reset();
     this.showPlanetsProperty.reset();
@@ -383,6 +440,7 @@ export class ZenithModel implements TModel {
     // not reset — they outlive Reset All.
     this.magnitudeLimitProperty.reset();
     this.selectedObjectProperty.reset();
+    this.clearMeasurement();
   }
 
   public step(dt: number): void {

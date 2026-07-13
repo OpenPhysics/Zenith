@@ -49,6 +49,18 @@ import { ZenithScreenSummaryContent } from "./ZenithScreenSummaryContent.js";
 const formatCivilTimeUtc = (civilTimeMs: number): string =>
   new Date(civilTimeMs).toISOString().replace("T", " ").slice(0, 16);
 
+/**
+ * Local mean solar time (HH:MM) at the observer's longitude: civil UTC shifted
+ * by longitude/15 hours. This is the clock the Sun keeps — noon is when the Sun
+ * transits — so it explains why the sky does not match the UTC readout.
+ */
+const formatLocalSolarTime = (civilTimeMs: number, longitudeDeg: number): string => {
+  const solar = new Date(civilTimeMs + (longitudeDeg / 15) * 3600 * 1000);
+  const hh = String(solar.getUTCHours()).padStart(2, "0");
+  const mm = String(solar.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+};
+
 /** Gap between the control panel and Reset All when they would overlap. */
 const RESET_ALL_PANEL_GAP = 8;
 
@@ -119,9 +131,9 @@ export class ZenithScreenView extends ScreenView {
 
     const latitudeControl = new NumberControl(controls.latitudeStringProperty, model.latitudeProperty, LATITUDE_RANGE, {
       ...ZENITH_NUMBER_CONTROL_OPTIONS,
-      delta: 1,
+      delta: 0.5,
       numberDisplayOptions: {
-        decimalPlaces: 0,
+        decimalPlaces: 1,
         valuePattern: "{{value}}°",
       },
       titleNodeOptions: titleOptions,
@@ -134,9 +146,9 @@ export class ZenithScreenView extends ScreenView {
       LONGITUDE_RANGE,
       {
         ...ZENITH_NUMBER_CONTROL_OPTIONS,
-        delta: 1,
+        delta: 0.5,
         numberDisplayOptions: {
-          decimalPlaces: 0,
+          decimalPlaces: 1,
           valuePattern: "{{value}}°",
         },
         titleNodeOptions: titleOptions,
@@ -199,6 +211,21 @@ export class ZenithScreenView extends ScreenView {
     const civilTimeReadout = new Text(
       new PatternStringProperty(controls.civilTimeStringProperty, {
         time: civilTimeUtcProperty,
+      }),
+      {
+        font: labelFont,
+        fill: ZenithColors.textColorProperty,
+        maxWidth: CONTROL_PANEL_WIDTH - 40,
+      },
+    );
+
+    const localSolarTimeProperty = new DerivedProperty(
+      [model.civilTimeMsProperty, model.longitudeProperty],
+      formatLocalSolarTime,
+    );
+    const localSolarTimeReadout = new Text(
+      new PatternStringProperty(controls.localSolarTimeStringProperty, {
+        time: localSolarTimeProperty,
       }),
       {
         font: labelFont,
@@ -294,6 +321,21 @@ export class ZenithScreenView extends ScreenView {
       controls.trueScaleBodiesStringProperty,
       a11y.controls.trueScaleBodiesStringProperty,
     );
+    const eclipticCheckbox = checkbox(
+      model.showEclipticProperty,
+      controls.showEclipticStringProperty,
+      a11y.controls.showEclipticStringProperty,
+    );
+    const celestialEquatorCheckbox = checkbox(
+      model.showCelestialEquatorProperty,
+      controls.showCelestialEquatorStringProperty,
+      a11y.controls.showCelestialEquatorStringProperty,
+    );
+    const objectPathCheckbox = checkbox(
+      model.showObjectPathProperty,
+      controls.showObjectPathStringProperty,
+      a11y.controls.showObjectPathStringProperty,
+    );
 
     // Star names, constellation lines, and planet labels live in Preferences → Simulation.
     const displayToggles = new GridBox({
@@ -302,6 +344,8 @@ export class ZenithScreenView extends ScreenView {
         [meridianCheckbox, equatorialGridCheckbox],
         [horizonCheckbox, planetsCheckbox],
         [atmosphereCheckbox, trueScaleCheckbox],
+        [eclipticCheckbox, celestialEquatorCheckbox],
+        [objectPathCheckbox],
       ],
       xSpacing: 8,
       ySpacing: 4,
@@ -321,6 +365,7 @@ export class ZenithScreenView extends ScreenView {
         epochCombo,
         civilDateTimeControl,
         civilTimeReadout,
+        localSolarTimeReadout,
         lstReadout,
         timeControl,
         fovControl,
@@ -382,6 +427,15 @@ export class ZenithScreenView extends ScreenView {
     });
     this.addChild(selectionPanel);
 
+    // Subtle discoverability hint along the bottom of the sky.
+    const onscreenHint = new Text(controls.onscreenHintStringProperty, {
+      font: new PhetFont(11),
+      fill: ZenithColors.textColorProperty,
+      opacity: 0.55,
+      pickable: false,
+    });
+    this.addChild(onscreenHint);
+
     // Panel and Reset All sit above the sky so they remain interactive.
     this.addChild(this.controlPanel);
 
@@ -408,6 +462,9 @@ export class ZenithScreenView extends ScreenView {
       if (resetAllButton.top < this.controlPanel.bottom + RESET_ALL_PANEL_GAP) {
         resetAllButton.top = this.controlPanel.bottom + RESET_ALL_PANEL_GAP;
       }
+
+      onscreenHint.centerX = visibleBounds.centerX;
+      onscreenHint.bottom = visibleBounds.maxY - SELECTION_PANEL_INSET;
     };
 
     // Sky + background always fill the window (including past layoutBounds).

@@ -1,13 +1,13 @@
 /**
  * attachPlanetariumInteraction.ts
  *
- * Pointer + keyboard camera control for the first-person planetarium FOV:
+ * Pointer + keyboard camera control for the first-person sky view:
  *   - plain drag / arrow keys       → pan look az/alt
  *   - Ctrl/Meta-drag / Ctrl+arrows  → advance civil time (LST follows)
  *   - click (small motion)          → select nearest named star / planet
- *   - N / P                         → cycle selectable objects in the FOV
+ *   - N / P                         → cycle selectable objects in view
  *   - Escape                        → clear selection
- *   - wheel                         → change FOV
+ *   - wheel                         → change field of view
  */
 
 import { PatternStringProperty, type TReadOnlyProperty } from "scenerystack/axon";
@@ -78,6 +78,23 @@ const announceSelection = (target: Node, model: ZenithModel, selected: SelectedS
   );
 };
 
+/** Announces the current measure-tool state to assistive tech. */
+const announceMeasurement = (target: Node, model: ZenithModel): void => {
+  const a11y = StringManager.getInstance().getA11yStrings();
+  const start = model.measureStartProperty.value;
+  const end = model.measureEndProperty.value;
+  const separation = model.measureSeparationDegProperty.value;
+  if (start && end && separation !== null) {
+    target.addAccessibleResponse(
+      new PatternStringProperty(a11y.measureResultStringProperty, { deg: formatDeg(separation) }),
+    );
+  } else if (start) {
+    target.addAccessibleResponse(a11y.measureFirstPointStringProperty);
+  } else {
+    target.addAccessibleResponse(a11y.measureClearedStringProperty);
+  }
+};
+
 const sameSelection = (a: SelectedSkyObject | null, b: SelectedSkyObject): boolean => {
   if (!a || a.kind !== b.kind) {
     return false;
@@ -123,6 +140,7 @@ export const attachPlanetariumInteraction = <T extends Node>(
   let startY = 0;
   let dragMode: "pan" | "time" = "pan";
   let totalMove = 0;
+  let measureClick = false;
 
   const panBy = (dAzDeg: number, dAltDeg: number): void => {
     model.lookAzimuthDegProperty.value = wrapLookAzimuth(model.lookAzimuthDegProperty.value + dAzDeg);
@@ -141,12 +159,13 @@ export const attachPlanetariumInteraction = <T extends Node>(
   target.addInputListener(
     new DragListener({
       start: (event) => {
-        const domEvent = event.domEvent as { ctrlKey?: boolean; metaKey?: boolean } | null;
+        const domEvent = event.domEvent as { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } | null;
         lastX = event.pointer.point.x;
         lastY = event.pointer.point.y;
         startX = lastX;
         startY = lastY;
         totalMove = 0;
+        measureClick = domEvent?.shiftKey ?? false;
         dragMode = domEvent?.ctrlKey || domEvent?.metaKey ? "time" : "pan";
       },
       drag: (event) => {
@@ -157,7 +176,7 @@ export const attachPlanetariumInteraction = <T extends Node>(
         if (dragMode === "time") {
           model.advanceSiderealTime(-dx * TIME_DRAG_HOURS_PER_PIXEL);
         } else {
-          // Drag right → look toward higher azimuth (sky appears to move left).
+          // Drag right → look toward higher azimuth; drag up → look higher.
           panBy(dx * LOOK_PAN_DEG_PER_PIXEL, dy * LOOK_PAN_DEG_PER_PIXEL);
         }
         lastX = p.x;
@@ -168,8 +187,13 @@ export const attachPlanetariumInteraction = <T extends Node>(
           return;
         }
         const localPoint = skyNode.globalToLocalPoint(event.pointer.point);
-        const selected = skyNode.findNearestObject(new Vector2(localPoint.x, localPoint.y));
-        setSelection(selected);
+        const viewPoint = new Vector2(localPoint.x, localPoint.y);
+        if (measureClick) {
+          model.addMeasurePoint(skyNode.equatorialAtViewPoint(viewPoint));
+          announceMeasurement(target, model);
+          return;
+        }
+        setSelection(skyNode.findNearestObject(viewPoint));
       },
     }),
   );
@@ -184,6 +208,10 @@ export const attachPlanetariumInteraction = <T extends Node>(
       fireOnHold: true,
       fire: (_event, keysPressed) => {
         if (keysPressed === "escape") {
+          if (model.measureStartProperty.value || model.measureEndProperty.value) {
+            model.clearMeasurement();
+            announceMeasurement(target, model);
+          }
           setSelection(null);
           return;
         }
@@ -225,7 +253,7 @@ export const attachPlanetariumInteraction = <T extends Node>(
     }),
   );
 
-  // Wheel zooms FOV (narrower = zoom in).
+  // Wheel zooms the field of view (narrower = zoom in).
   target.addInputListener({
     wheel: (event) => {
       const domEvent = event.domEvent as WheelEvent | null;
@@ -240,6 +268,15 @@ export const attachPlanetariumInteraction = <T extends Node>(
       );
       event.abort();
     },
+  });
+
+  // Hover identifies the nearest object under the pointer without a click.
+  target.addInputListener({
+    move: (event) => {
+      const localPoint = skyNode.globalToLocalPoint(event.pointer.point);
+      skyNode.updateHover(new Vector2(localPoint.x, localPoint.y));
+    },
+    exit: () => skyNode.updateHover(null),
   });
 
   return target;

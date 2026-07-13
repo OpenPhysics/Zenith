@@ -85,10 +85,24 @@ Students can turn on overlays that name the same sky in two common languages:
 | Cardinals + zenith | N / S / E / W and the point straight up |
 | Local meridian | North–south great circle through the zenith |
 | Equatorial RA/Dec grid | Celestial coordinates (where things are *on the sphere*) |
+| Celestial equator | Declination 0° — the projection of Earth's equator |
+| Ecliptic | The Sun's yearly path; the plane the planets track near |
+| Selected object path | The 24 h diurnal circle the selected object traces |
 | Horizon / ground | Separates sky from Earth |
 
-Selecting a named star or planet shows magnitude, RA/Dec, and altitude/azimuth
-together — useful for connecting the two systems.
+Selecting a named star or planet shows magnitude, RA/Dec, altitude/azimuth, and
+its **rise / set / transit** times (or a circumpolar / never-rises note),
+together — useful for connecting the two systems. The **local solar time**
+readout sits beside UTC so students can see why noon on the clock is not when the
+Sun is highest.
+
+### Identifying and measuring
+
+- **Hover** over any star or planet to see its name without clicking.
+- **Click** to select it and read its details; **N / P** cycle through objects.
+- **Shift-click** two points (snapping to nearby objects) to measure the
+  **angular distance** between them in degrees — a line and the angle appear on
+  the sky. Escape clears it.
 
 ### Stars, constellations, and planets
 

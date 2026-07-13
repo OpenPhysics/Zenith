@@ -167,6 +167,24 @@ const ZenithColors = {
     projector: "#445566",
   }),
 
+  /** Ecliptic line — the Sun's yearly path (warm gold). */
+  eclipticColorProperty: new ProfileColorProperty(ZenithNamespace, "ecliptic", {
+    default: "#e6c34d",
+    projector: "#b38f1a",
+  }),
+
+  /** Celestial equator line (cool teal). */
+  celestialEquatorColorProperty: new ProfileColorProperty(ZenithNamespace, "celestialEquator", {
+    default: "#5ec8c8",
+    projector: "#1f8a8a",
+  }),
+
+  /** Diurnal path of the selected object across the sky. */
+  objectPathColorProperty: new ProfileColorProperty(ZenithNamespace, "objectPath", {
+    default: "#8fe08f",
+    projector: "#2f8a3f",
+  }),
+
   // ── Solar-system body fills (from planets.ini RGB; projector = darkened) ─────
   sunColorProperty: new ProfileColorProperty(ZenithNamespace, "sun", {
     default: "#fafaf7",

@@ -1,35 +1,32 @@
 /**
  * PlanetariumSkyNode.ts
  *
- * First-person rectangular FOV looking out from an Earth observer. Stars from
- * the bright-star catalog are projected via equatorial → horizontal → screen
- * pixels. Look direction and FOV are continuous Properties on ZenithModel.
+ * Aim-able first-person sky view for an Earth observer, drawn with a
+ * stereographic (fisheye) projection (see {@link SkyProjection}). Stars from the
+ * bright-star catalog are projected via equatorial → horizontal → screen pixels.
+ * Because it is a true spherical projection, the horizon appears as a curve and
+ * the altitude/azimuth grid converges to a point at the zenith as the camera
+ * tilts up. Look direction and FOV are continuous Properties on ZenithModel.
  * Optional overlays include an alt/az grid with tick labels, meridian, cardinals,
  * and an RA/Dec grid with hour/declination tick labels.
- *
- * Screen mapping (degrees → pixels), centered on look az/alt. `fieldOfViewDeg`
- * is the horizontal FOV; vertical FOV scales with the view aspect ratio so
- * degrees-per-pixel are equal in X and Y (isomorphic under zoom / resize):
- *   fovY = fovX · (height / width)
- *   x = left + width  · (az − lookAz + fovX/2) / fovX
- *   y = top  + height · (1 − (alt − altMin) / (altMax − altMin))
- * with altMax/Min = lookAlt ± fovY/2.
  */
 
 import type { TReadOnlyProperty } from "scenerystack/axon";
-import { type Bounds2, clamp, type Vector2 } from "scenerystack/dot";
+import { type Bounds2, clamp, Vector2 } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { Circle, LinearGradient, Node, Path, Rectangle, Text } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
-import { equatorialToHorizontal, normalizeDegrees } from "../../common/sky/SkyCoordinates.js";
+import {
+  type EquatorialCoordinates,
+  equatorialToHorizontal,
+  horizontalToEquatorial,
+} from "../../common/sky/SkyCoordinates.js";
 import { ASTRONOMICAL_TWILIGHT_DEG, effectiveStarVisibility, twilightSkyColors } from "../../common/sky/SkyTwilight.js";
 import { StringManager } from "../../i18n/StringManager.js";
 import {
   ALT_AZ_GRID_ALT_MAX_DEG,
-  ALT_AZ_GRID_ALT_MIN_DEG,
   ALT_AZ_GRID_ALT_STEP_DEG,
   ALT_AZ_GRID_AZ_STEP_DEG,
-  CARDINAL_EDGE_INSET_PX,
   CARDINAL_LABEL_ALTITUDE_DEG,
   EQUATORIAL_GRID_DEC_MAX_DEG,
   EQUATORIAL_GRID_DEC_MIN_DEG,
@@ -55,6 +52,7 @@ import { NAMED_BRIGHT_STARS, namedStarById } from "../model/NamedBrightStars.js"
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
 import { solarSystemBodyVisual } from "../model/SolarSystemBodies.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
+import { CelestialLinesNode } from "./CelestialLinesNode.js";
 import { PlanetariumPlanetsNode } from "./PlanetariumPlanetsNode.js";
 import { SkyProjection } from "./SkyProjection.js";
 
@@ -70,14 +68,16 @@ const EQUATORIAL_SAMPLE_STEP_DEG = 5;
 const EQUATORIAL_RA_LABEL_DEC_PREF_DEG = 15;
 /** Screen inset so grid tick labels stay readable inside the panel. */
 const GRID_LABEL_EDGE_INSET_PX = 14;
-/** Alt labels sit this far from the left FOV edge (px). */
-const ALT_LABEL_LEFT_INSET_PX = 22;
-/** Az labels sit this far above the visible sky bottom (px). */
-const AZ_LABEL_BOTTOM_INSET_PX = 16;
+/** Altitude (degrees) at which azimuth tick labels sit, just above the horizon. */
+const AZ_GRID_LABEL_ALT_DEG = 4;
+/** Azimuth / horizon curves are sampled every this many degrees. */
+const HORIZON_SAMPLE_STEP_DEG = 2;
+/** Break a polyline when consecutive samples jump more than this fraction of the view. */
+const LINE_BREAK_FRACTION = 0.5;
 /** Extra radius (px) so the selection ring sits just outside the object disc. */
 const SELECTION_RING_PADDING_PX = 4;
-/** Altitude (degrees) at which the zenith marker is drawn (just shy of true zenith). */
-const ZENITH_MARKER_ALTITUDE_DEG = 89;
+/** Altitude (degrees) at which the zenith marker is drawn. */
+const ZENITH_MARKER_ALTITUDE_DEG = 90;
 /** Stars dimmer than this effective visibility are not click/keyboard selectable. */
 const STAR_SELECTABLE_MIN_VISIBILITY = 0.05;
 /** Constellation name labels appear only above this effective star visibility. */
@@ -99,6 +99,21 @@ const formatDecTickLabel = (decDeg: number): string => {
 
 const formatAltAzTickLabel = (deg: number): string => `${deg}°`;
 
+/** Circle (center + radius) through three points, or null when they are collinear. */
+const circleThroughPoints = (a: Vector2, b: Vector2, c: Vector2): { center: Vector2; radius: number } | null => {
+  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  if (Math.abs(d) < 1e-6) {
+    return null;
+  }
+  const a2 = a.x * a.x + a.y * a.y;
+  const b2 = b.x * b.x + b.y * b.y;
+  const c2 = c.x * c.x + c.y * c.y;
+  const ux = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
+  const uy = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+  const center = new Vector2(ux, uy);
+  return { center, radius: center.distance(a) };
+};
+
 export type PlanetariumSkyNodeOptions = {
   bounds: Bounds2;
 };
@@ -109,7 +124,7 @@ type StarLabelNode = {
 };
 
 type ConstellationLabelNode = {
-  id: ConstellationId;
+  figure: (typeof CONSTELLATION_FIGURES)[number];
   label: Text;
 };
 
@@ -130,8 +145,11 @@ export class PlanetariumSkyNode extends Node {
   private bounds2: Bounds2;
   private projection: SkyProjection;
 
+  /** Full-bounds sky background (zenith→horizon vertical gradient). */
   private readonly skyFill: Rectangle;
+  /** Ground fill below the (curved) horizon. */
   private readonly groundFill: Path;
+  /** Horizon curve (alt 0°) stroked across the view. */
   private readonly horizonLine: Path;
   private readonly equatorialGridPath: Path;
   private readonly equatorialLabelsLayer: Node;
@@ -143,6 +161,7 @@ export class PlanetariumSkyNode extends Node {
   private readonly horizontalLabelsLayer: Node;
   private readonly horizontalTickLabels: HorizontalTickLabelNode[];
   private readonly meridianPath: Path;
+  private readonly celestialLinesNode: CelestialLinesNode;
   private readonly starsPath: Path;
   private readonly planetsNode: PlanetariumPlanetsNode;
   private readonly starLabelsLayer: Node;
@@ -159,6 +178,7 @@ export class PlanetariumSkyNode extends Node {
     zenith: Text;
   };
   private readonly selectionRing: Circle;
+  private readonly hoverLabel: Text;
 
   public constructor(model: ZenithModel, options: PlanetariumSkyNodeOptions) {
     super({ pickable: true });
@@ -232,7 +252,7 @@ export class PlanetariumSkyNode extends Node {
     });
 
     const horizontalTickLabels: HorizontalTickLabelNode[] = [];
-    for (let alt = ALT_AZ_GRID_ALT_MIN_DEG; alt <= ALT_AZ_GRID_ALT_MAX_DEG; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
+    for (let alt = 0; alt <= ALT_AZ_GRID_ALT_MAX_DEG; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
       horizontalTickLabels.push({
         kind: "alt",
         value: alt,
@@ -275,6 +295,7 @@ export class PlanetariumSkyNode extends Node {
       pickable: false,
     });
     this.planetsNode = new PlanetariumPlanetsNode(model);
+    this.celestialLinesNode = new CelestialLinesNode(model);
 
     const stars = StringManager.getInstance().getStars();
     const starNameProperty = (id: string): TReadOnlyProperty<string> => {
@@ -302,7 +323,7 @@ export class PlanetariumSkyNode extends Node {
       return constellations[key] as TReadOnlyProperty<string>;
     };
     this.constellationLabelNodes = CONSTELLATION_FIGURES.map((figure) => ({
-      id: figure.id,
+      figure,
       label: new Text(constellationNameProperty(figure.id), {
         font: CONSTELLATION_LABEL_FONT,
         fill: ZenithColors.constellationLabelColorProperty,
@@ -343,6 +364,13 @@ export class PlanetariumSkyNode extends Node {
       pickable: false,
     });
 
+    this.hoverLabel = new Text("", {
+      font: LABEL_FONT,
+      fill: ZenithColors.accentColorProperty,
+      visible: false,
+      pickable: false,
+    });
+
     this.children = [
       this.skyFill,
       this.groundFill,
@@ -354,6 +382,7 @@ export class PlanetariumSkyNode extends Node {
       this.gridPath,
       this.horizontalLabelsLayer,
       this.meridianPath,
+      this.celestialLinesNode,
       this.starsPath,
       this.planetsNode,
       this.starLabelsLayer,
@@ -367,6 +396,7 @@ export class PlanetariumSkyNode extends Node {
       this.cardinalLabels.northwest,
       this.cardinalLabels.zenith,
       this.selectionRing,
+      this.hoverLabel,
     ];
 
     const redrawDependencies = [
@@ -389,9 +419,14 @@ export class PlanetariumSkyNode extends Node {
       model.showPlanetLabelsProperty,
       model.showStarLabelsProperty,
       model.showConstellationsProperty,
+      model.showEclipticProperty,
+      model.showCelestialEquatorProperty,
+      model.showObjectPathProperty,
       model.deepStarCatalogProperty,
       model.magnitudeLimitProperty,
       model.selectedObjectProperty,
+      model.measureStartProperty,
+      model.measureEndProperty,
       ZenithColors.skyPanelColorProperty,
       ZenithColors.skyNightHorizonColorProperty,
       ZenithColors.skyDayZenithColorProperty,
@@ -406,6 +441,7 @@ export class PlanetariumSkyNode extends Node {
       property.lazyLink(() => this.redraw());
     }
 
+    this.clipArea = Shape.bounds(this.bounds2);
     this.projection = this.buildProjection();
     this.redraw();
   }
@@ -413,6 +449,8 @@ export class PlanetariumSkyNode extends Node {
   /** Repositions the panel after layout changes. */
   public setViewBounds(bounds: Bounds2): void {
     this.bounds2 = bounds;
+    // Clip the fisheye overdraw (points beyond the FOV can project far outside).
+    this.clipArea = Shape.bounds(bounds);
     this.redraw();
   }
 
@@ -505,6 +543,55 @@ export class PlanetariumSkyNode extends Node {
     return ranked.map((entry) => entry.object);
   }
 
+  /**
+   * Equatorial coordinates for a view-space click: snaps to the nearest
+   * selectable object when one is close, otherwise inverse-projects the empty
+   * sky point. Used by the angular-distance measure tool.
+   */
+  public equatorialAtViewPoint(viewPoint: Vector2): EquatorialCoordinates {
+    const nearest = this.findNearestObject(viewPoint);
+    if (nearest) {
+      const eq = this.model.equatorialOfSelected(nearest);
+      if (eq) {
+        return { raHours: eq.raHours, decDeg: eq.decDeg };
+      }
+    }
+    const { altDeg, azDeg } = this.projection.unproject(viewPoint);
+    return horizontalToEquatorial(
+      altDeg,
+      azDeg,
+      this.model.latitudeProperty.value,
+      this.model.localSiderealTimeHoursProperty.value,
+    );
+  }
+
+  /** Localized display name for a hovered/selected object. */
+  private objectDisplayName(selected: SelectedSkyObject): string {
+    if (selected.kind === "star") {
+      const stars = StringManager.getInstance().getStars();
+      const key = `${selected.id}StringProperty` as keyof typeof stars;
+      return (stars[key] as TReadOnlyProperty<string>).value;
+    }
+    const bodies = StringManager.getInstance().getBodies();
+    const key = `${selected.id}StringProperty` as keyof typeof bodies;
+    return (bodies[key] as TReadOnlyProperty<string>).value;
+  }
+
+  /**
+   * Shows a floating name label for the nearest object under the pointer, or
+   * hides it when the pointer is over empty sky or has left the view.
+   */
+  public updateHover(viewPoint: Vector2 | null): void {
+    const nearest = viewPoint ? this.findNearestObject(viewPoint) : null;
+    if (!(nearest && viewPoint)) {
+      this.hoverLabel.visible = false;
+      return;
+    }
+    this.hoverLabel.string = this.objectDisplayName(nearest);
+    this.hoverLabel.leftBottom = new Vector2(viewPoint.x + 12, viewPoint.y - 8);
+    this.hoverLabel.visible = true;
+  }
+
   private projectSelectedObject(selected: SelectedSkyObject): Vector2 | null {
     const eq = this.model.equatorialOfSelected(selected);
     if (!eq) {
@@ -529,18 +616,6 @@ export class PlanetariumSkyNode extends Node {
     });
   }
 
-  private azOffset(azDeg: number): number {
-    return this.projection.azOffset(azDeg);
-  }
-
-  private azToX(azDeg: number): number {
-    return this.projection.azToX(azDeg);
-  }
-
-  private altToY(altDeg: number): number {
-    return this.projection.altToY(altDeg);
-  }
-
   private projectAltAz(altDeg: number, azDeg: number): Vector2 | null {
     return this.projection.project(altDeg, azDeg);
   }
@@ -550,117 +625,93 @@ export class PlanetariumSkyNode extends Node {
     return STAR_RADIUS_MAX + (STAR_RADIUS_MIN - STAR_RADIUS_MAX) * t;
   }
 
+  /**
+   * Appends a broken polyline to `shape`, sampling `steps + 1` points and
+   * starting a new sub-path whenever a sample is culled or jumps implausibly far
+   * on screen (a great circle skimming the antipode).
+   */
+  private appendSampledCurve(shape: Shape, steps: number, sample: (i: number) => Vector2 | null): void {
+    const breakPx = LINE_BREAK_FRACTION * Math.min(this.bounds2.width, this.bounds2.height);
+    let started = false;
+    let previous: Vector2 | null = null;
+    for (let i = 0; i <= steps; i++) {
+      const point = sample(i);
+      if (!point) {
+        started = false;
+        previous = null;
+        continue;
+      }
+      if (started && previous && point.distance(previous) > breakPx) {
+        started = false;
+      }
+      if (started) {
+        shape.lineTo(point.x, point.y);
+      } else {
+        shape.moveTo(point.x, point.y);
+        started = true;
+      }
+      previous = point;
+    }
+  }
+
   private altAzGridShape(): Shape {
-    const b = this.bounds2;
     const shape = new Shape();
-    const hideBelowHorizon = this.model.showHorizonProperty.value;
-    const lookAz = this.model.lookAzimuthDegProperty.value;
-    const fovX = this.model.fieldOfViewDegProperty.value;
+    const azSteps = Math.round(360 / HORIZON_SAMPLE_STEP_DEG);
+    const altSteps = Math.round(90 / MERIDIAN_ALT_STEP_DEG);
 
-    const yTop = b.minY;
-    const yBottom = hideBelowHorizon ? Math.min(b.maxY, Math.max(b.minY, this.altToY(0))) : b.maxY;
-
-    // Lines of constant altitude (horizontal parallels across the FOV).
-    const altStart =
-      Math.ceil(Math.max(this.projection.altMin, ALT_AZ_GRID_ALT_MIN_DEG) / ALT_AZ_GRID_ALT_STEP_DEG) *
-      ALT_AZ_GRID_ALT_STEP_DEG;
-    for (let alt = altStart; alt <= this.projection.altMax + 1e-9; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
-      if (alt > ALT_AZ_GRID_ALT_MAX_DEG) {
-        break;
-      }
-      if (hideBelowHorizon && alt < 0) {
-        continue;
-      }
-      if (alt < this.projection.altMin || alt > this.projection.altMax) {
-        continue;
-      }
-      const y = this.altToY(alt);
-      shape.moveTo(b.minX, y).lineTo(b.maxX, y);
+    // Altitude parallels: constant altitude, swept in azimuth.
+    for (let alt = 0; alt < ALT_AZ_GRID_ALT_MAX_DEG; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
+      this.appendSampledCurve(shape, azSteps, (i) => this.projectAltAz(alt, i * HORIZON_SAMPLE_STEP_DEG));
     }
-
-    // Lines of constant azimuth (vertical meridians across the FOV).
-    if (yBottom > yTop + 1) {
-      const azLo = lookAz - fovX / 2;
-      const azHi = lookAz + fovX / 2;
-      const azStart = Math.ceil(azLo / ALT_AZ_GRID_AZ_STEP_DEG) * ALT_AZ_GRID_AZ_STEP_DEG;
-      for (let az = azStart; az <= azHi + 1e-9; az += ALT_AZ_GRID_AZ_STEP_DEG) {
-        const x = this.azToX(az);
-        if (x < b.minX || x > b.maxX) {
-          continue;
-        }
-        shape.moveTo(x, yTop).lineTo(x, yBottom);
-      }
+    // Azimuth meridians: constant azimuth, swept from horizon to zenith.
+    for (let az = 0; az < 360; az += ALT_AZ_GRID_AZ_STEP_DEG) {
+      this.appendSampledCurve(shape, altSteps, (i) => this.projectAltAz(i * MERIDIAN_ALT_STEP_DEG, az));
     }
-
     return shape;
   }
 
   /**
-   * Places altitude / azimuth tick labels on visible alt/az grid lines.
-   * Alt labels sit along the left edge; az labels sit near the bottom of the sky.
+   * Places altitude / azimuth tick labels on the alt/az grid. Altitude labels
+   * stack along the meridian through the view center; azimuth labels sit just
+   * above the horizon at each meridian.
    */
   private redrawHorizontalGridLabels(): void {
     const show = this.model.showGridProperty.value;
-    if (!show) {
-      for (const { label } of this.horizontalTickLabels) {
-        label.visible = false;
-      }
-      return;
-    }
-
-    const b = this.bounds2;
-    const hideBelowHorizon = this.model.showHorizonProperty.value;
-    const fovX = this.model.fieldOfViewDegProperty.value;
-    const skyBottomY = hideBelowHorizon ? Math.min(b.maxY, Math.max(b.minY, this.altToY(0))) : b.maxY;
-
     for (const tick of this.horizontalTickLabels) {
-      if (tick.kind === "alt") {
-        this.placeAltitudeGridLabel(tick, b, skyBottomY, hideBelowHorizon);
+      if (!show) {
+        tick.label.visible = false;
+      } else if (tick.kind === "alt") {
+        this.placeAltitudeGridLabel(tick);
       } else {
-        this.placeAzimuthGridLabel(tick, b, skyBottomY, fovX);
+        this.placeAzimuthGridLabel(tick);
       }
     }
   }
 
-  private placeAltitudeGridLabel(
-    tick: HorizontalTickLabelNode,
-    b: Bounds2,
-    skyBottomY: number,
-    hideBelowHorizon: boolean,
-  ): void {
+  private placeAltitudeGridLabel(tick: HorizontalTickLabelNode): void {
     const alt = tick.value;
-    if ((hideBelowHorizon && alt < 0) || alt < this.projection.altMin || alt > this.projection.altMax) {
+    // Skip the horizon (labeled by cardinals) and the zenith point.
+    if (alt <= 0 || alt >= ALT_AZ_GRID_ALT_MAX_DEG) {
       tick.label.visible = false;
       return;
     }
-    const y = this.altToY(alt);
-    if (y < b.minY + GRID_LABEL_EDGE_INSET_PX || y > skyBottomY - GRID_LABEL_EDGE_INSET_PX) {
+    const point = this.projection.project(alt, this.projection.lookAzimuthDeg);
+    if (!(point && this.isEquatorialLabelPointInBounds(point))) {
       tick.label.visible = false;
       return;
     }
-    tick.label.left = b.minX + ALT_LABEL_LEFT_INSET_PX;
-    tick.label.centerY = y;
+    tick.label.left = point.x + 4;
+    tick.label.centerY = point.y;
     tick.label.visible = true;
   }
 
-  private placeAzimuthGridLabel(tick: HorizontalTickLabelNode, b: Bounds2, skyBottomY: number, fovX: number): void {
-    const az = tick.value;
-    if (Math.abs(this.azOffset(az)) > fovX / 2) {
+  private placeAzimuthGridLabel(tick: HorizontalTickLabelNode): void {
+    const point = this.projection.project(AZ_GRID_LABEL_ALT_DEG, tick.value);
+    if (!(point && this.isEquatorialLabelPointInBounds(point))) {
       tick.label.visible = false;
       return;
     }
-    const x = this.azToX(az);
-    if (x < b.minX + GRID_LABEL_EDGE_INSET_PX || x > b.maxX - GRID_LABEL_EDGE_INSET_PX) {
-      tick.label.visible = false;
-      return;
-    }
-    const labelY = skyBottomY - AZ_LABEL_BOTTOM_INSET_PX;
-    if (labelY < b.minY + GRID_LABEL_EDGE_INSET_PX) {
-      tick.label.visible = false;
-      return;
-    }
-    tick.label.centerX = x;
-    tick.label.bottom = labelY;
+    tick.label.center = point;
     tick.label.visible = true;
   }
 
@@ -1003,68 +1054,22 @@ export class PlanetariumSkyNode extends Node {
       { node: labels.northwest, azDeg: 315 },
     ];
 
-    const placeInFov = (node: Text, altDeg: number, azDeg: number): boolean => {
-      if (!show) {
+    // Cardinals sit along the horizon at their azimuth; the zenith marker sits
+    // wherever the zenith projects. Each is shown only when it lands in view.
+    const place = (node: Text, altDeg: number, azDeg: number): void => {
+      const point = show ? this.projectAltAz(altDeg, azDeg) : null;
+      if (!(point && this.bounds2.containsPoint(point))) {
         node.visible = false;
-        return false;
-      }
-      const point = this.projectAltAz(altDeg, azDeg);
-      if (!point) {
-        node.visible = false;
-        return false;
+        return;
       }
       node.center = point;
       node.visible = true;
-      return true;
     };
 
     for (const { node, azDeg } of [...mainCardinals, ...intercardinals]) {
-      placeInFov(node, CARDINAL_LABEL_ALTITUDE_DEG, azDeg);
+      place(node, CARDINAL_LABEL_ALTITUDE_DEG, azDeg);
     }
-    placeInFov(labels.zenith, ZENITH_MARKER_ALTITUDE_DEG, this.model.lookAzimuthDegProperty.value);
-
-    if (!show) {
-      return;
-    }
-
-    // Pin any primary cardinal still outside the FOV to the view edge that
-    // points toward it (left / right / behind), so N/E/S/W stay readable even
-    // when the default south-facing FOV only contains South on the sky.
-    // Left/right pins sit on the ground below the horizon so they do not
-    // collide with in-FOV intercardinals (SE/SW) at the FOV edges.
-    const lookAz = this.model.lookAzimuthDegProperty.value;
-    const b = this.bounds2;
-    const inset = CARDINAL_EDGE_INSET_PX;
-    const horizonY = clamp(this.altToY(0), b.minY, b.maxY);
-    const groundLabelY = Math.min(b.maxY - inset, horizonY + 16);
-
-    const mainByQuarter = [labels.north, labels.east, labels.south, labels.west] as const;
-    const nearestMain = (azDeg: number): Text => {
-      const wrapped = normalizeDegrees(azDeg);
-      const index = ((Math.round(wrapped / 90) % 4) + 4) % 4;
-      return mainByQuarter[index as 0 | 1 | 2 | 3];
-    };
-
-    const pinEdge = (node: Text, edge: "left" | "right" | "behind"): void => {
-      if (node.visible) {
-        return;
-      }
-      if (edge === "left") {
-        node.left = b.minX + inset;
-        node.centerY = groundLabelY;
-      } else if (edge === "right") {
-        node.right = b.maxX - inset;
-        node.centerY = groundLabelY;
-      } else {
-        node.centerX = b.centerX;
-        node.top = b.minY + inset;
-      }
-      node.visible = true;
-    };
-
-    pinEdge(nearestMain(lookAz - 90), "left");
-    pinEdge(nearestMain(lookAz + 90), "right");
-    pinEdge(nearestMain(lookAz + 180), "behind");
+    place(labels.zenith, ZENITH_MARKER_ALTITUDE_DEG, this.model.lookAzimuthDegProperty.value);
   }
 
   private redrawSelection(): void {
@@ -1092,7 +1097,8 @@ export class PlanetariumSkyNode extends Node {
       const state = this.model.skySnapshotProperty.value.byId.get(selected.id);
       const visual = solarSystemBodyVisual(selected.id);
       radius = state
-        ? this.planetsNode.discRadiusPx(visual, state.mag, state.distAu, this.projection) + SELECTION_RING_PADDING_PX
+        ? this.planetsNode.discRadiusPx(visual, state.mag, state.distAu, this.projection, altDeg, azDeg) +
+          SELECTION_RING_PADDING_PX
         : STAR_RADIUS_MAX + SELECTION_RING_PADDING_PX;
     }
 
@@ -1122,13 +1128,8 @@ export class PlanetariumSkyNode extends Node {
     const lst = this.model.localSiderealTimeHoursProperty.value;
     const hideBelowHorizon = this.model.showHorizonProperty.value;
 
-    for (const { id, label } of this.constellationLabelNodes) {
+    for (const { figure, label } of this.constellationLabelNodes) {
       if (!(show && starVisibility > CONSTELLATION_LABEL_MIN_VISIBILITY)) {
-        label.visible = false;
-        continue;
-      }
-      const figure = CONSTELLATION_FIGURES.find((f) => f.id === id);
-      if (!figure) {
         label.visible = false;
         continue;
       }
@@ -1187,26 +1188,86 @@ export class PlanetariumSkyNode extends Node {
       twilightHorizon: ZenithColors.skyTwilightHorizonColorProperty.value,
     });
 
-    const showHorizon = this.model.showHorizonProperty.value;
-    const horizonY = showHorizon ? clamp(this.altToY(0), b.minY, b.maxY) : b.maxY;
-    const skyBottom = Math.max(b.minY + 1, horizonY);
-
-    const gradient = new LinearGradient(b.centerX, b.minY, b.centerX, skyBottom);
+    // Sky background: a vertical zenith→horizon gradient filling the whole view.
+    const gradient = new LinearGradient(b.centerX, b.minY, b.centerX, b.maxY);
     gradient.addColorStop(0, colors.zenith);
     gradient.addColorStop(1, colors.horizon);
     this.skyFill.fill = gradient;
     this.skyFill.setRect(b.minX, b.minY, b.width, b.height);
 
+    const showHorizon = this.model.showHorizonProperty.value;
     if (showHorizon) {
+      const { horizon, ground } = this.horizonAndGroundShapes();
       this.groundFill.fill = colors.ground;
-      this.groundFill.shape = Shape.rect(b.minX, horizonY, b.width, Math.max(0, b.maxY - horizonY));
-      this.horizonLine.shape = Shape.lineSegment(b.minX, horizonY, b.maxX, horizonY);
-      this.groundFill.visible = true;
-      this.horizonLine.visible = true;
+      this.groundFill.shape = ground;
+      this.groundFill.visible = ground !== null;
+      this.horizonLine.shape = horizon;
+      this.horizonLine.visible = horizon !== null;
     } else {
       this.groundFill.visible = false;
       this.horizonLine.visible = false;
     }
+  }
+
+  /**
+   * The horizon curve and the ground region below it, in view pixels. The
+   * horizon great circle projects (stereographically) to a circle on screen, so
+   * we fit that circle from horizon samples and fill the side away from the view
+   * center as ground. Near a level view the circle degenerates to a line, so we
+   * fall back to a half-plane below the horizon. Returns nulls when the horizon
+   * is entirely out of view.
+   */
+  private horizonAndGroundShapes(): { horizon: Shape | null; ground: Shape | null } {
+    const b = this.bounds2;
+    const points: Vector2[] = [];
+    for (let az = 0; az < 360; az += HORIZON_SAMPLE_STEP_DEG) {
+      const point = this.projectAltAz(0, az);
+      if (point) {
+        points.push(point);
+      }
+    }
+    if (points.length < 3) {
+      return { horizon: null, ground: null };
+    }
+
+    const n = points.length;
+    const diagonal = Math.hypot(b.width, b.height);
+    const circle = circleThroughPoints(
+      points[0] as Vector2,
+      points[(n / 3) | 0] as Vector2,
+      points[((2 * n) / 3) | 0] as Vector2,
+    );
+
+    if (circle && circle.radius < 8 * diagonal) {
+      const horizon = Shape.circle(circle.center.x, circle.center.y, circle.radius);
+      // The view center's altitude is the (non-negative) look altitude, so it is
+      // on the sky side; ground is the opposite side of the horizon circle.
+      const skyIsInside = circle.center.distance(b.center) < circle.radius;
+      const disc = Shape.circle(circle.center.x, circle.center.y, circle.radius);
+      const ground = skyIsInside ? Shape.bounds(b).shapeDifference(disc) : disc;
+      return { horizon, ground };
+    }
+
+    // Level-view fallback: horizon ≈ a straight line; fill the half-plane below.
+    const p1 = points[0] as Vector2;
+    const p2 = points[(n / 2) | 0] as Vector2;
+    if (p1.distance(p2) < 1e-3) {
+      return { horizon: null, ground: null };
+    }
+    const dir = p2.minus(p1).normalized();
+    const normal = new Vector2(-dir.y, dir.x);
+    const groundNormal = normal.dot(b.center.minus(p1)) > 0 ? normal.negated() : normal;
+    const big = 4 * diagonal;
+    const a = p1.minus(dir.timesScalar(big));
+    const c = p2.plus(dir.timesScalar(big));
+    const ground = new Shape()
+      .moveToPoint(a)
+      .lineToPoint(c)
+      .lineToPoint(c.plus(groundNormal.timesScalar(big)))
+      .lineToPoint(a.plus(groundNormal.timesScalar(big)))
+      .close();
+    const horizon = new Shape().moveToPoint(a).lineToPoint(c);
+    return { horizon, ground };
   }
 
   private redraw(): void {
@@ -1246,6 +1307,7 @@ export class PlanetariumSkyNode extends Node {
     }
 
     this.starsPath.shape = starVisibility > STAR_RENDER_MIN_VISIBILITY ? this.redrawStars() : null;
+    this.celestialLinesNode.redraw(this.projection);
     this.planetsNode.redraw(this.projection);
     this.redrawStarLabels();
     this.redrawConstellationLabels();
