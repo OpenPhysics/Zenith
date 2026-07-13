@@ -1,70 +1,159 @@
-# Model
+# Model — Zenith (for teachers)
 
-## Purpose
+This document describes the **conceptual model** of Zenith: what the simulation
+represents, which ideas students can explore, and useful classroom hooks.
+For architecture, properties, and code entry points, see
+[implementation-notes.md](./implementation-notes.md).
 
-Zenith models a first-person planetarium: an observer on Earth looking at the
-celestial sphere. Geographic latitude / longitude, **civil time**, derived local
-sidereal time, and look direction / FOV determine which stars and solar-system
-bodies appear on screen.
+---
 
-## State
+## What Zenith models
 
-| Property | Units | Notes |
-|---|---|---|
-| `timer.isPlayingProperty` | — | Play/pause for sky motion |
-| `timer.timeProperty` | s | Elapsed simulation time |
-| `timeSpeedProperty` | TimeSpeed | SLOW / NORMAL / FAST multiplier |
-| `locationPresetProperty` | LocationPreset | Named sites; `CUSTOM` when lat/lon scrubbed |
-| `epochPresetProperty` | EpochPreset | Solstice/equinox jumps; `CUSTOM` when time advances |
-| `latitudeProperty` | degrees (+N) | Observer latitude |
-| `longitudeProperty` | degrees (+E) | Observer longitude |
-| `civilTimeMsProperty` | ms (UTC epoch) | Advances while playing; drives ephemerides |
-| `localSiderealTimeHoursProperty` | hours `[0, 24)` | Synced from GAST + longitude |
-| `lookAzimuthDegProperty` | degrees (N→E) | FOV center azimuth |
-| `lookAltitudeDegProperty` | degrees | FOV center altitude |
-| `fieldOfViewDegProperty` | degrees | Horizontal FOV |
-| `showGridProperty` | — | Altitude tick overlays |
-| `showCardinalsProperty` | — | N/S/E/W labels + zenith marker |
-| `showMeridianProperty` | — | Local meridian arcs |
-| `showEquatorialGridProperty` | — | Coarse RA/Dec grid |
-| `showHorizonProperty` | — | Ground band + horizon line |
-| `showPlanetsProperty` | — | Sun / Moon / planets |
-| `trueScaleBodiesProperty` | — | Planet discs use true angular size (Sun/Moon always do) |
-| `showPlanetLabelsProperty` | — | Name tags for preferred bodies |
-| `showStarLabelsProperty` | — | Curated bright-star name tags |
-| `showConstellationsProperty` | — | Classroom stick figures |
-| `magnitudeLimitProperty` | mag | Cull fainter catalog stars |
-| `selectedObjectProperty` | SelectedSkyObject \| null | Click/keyboard-selected star or planet |
-| `solarAltitudeDegProperty` | degrees | Derived; drives twilight sky + star fade |
+Zenith is a **first-person planetarium**. Students stand as an observer on Earth
+and look at a rectangular patch of sky. What they see depends on:
 
-Defaults (Boulder, CO; look south; epoch `2024-06-21 18:00 UTC`) and ranges live
-in `src/SimConstants.ts`. Named location / epoch tables live in
-`LocationPreset.ts` and `EpochPreset.ts`. Startup deep-links (`lat`, `lon`,
-`date`, `fov`, `magLimit`, overlay toggles) live in `zenithQueryParameters.ts`.
+1. **Where** they are (latitude and longitude)
+2. **When** it is (civil date and time in UTC)
+3. **Which way** they look (azimuth and altitude) and how wide the view is
+   (field of view)
 
-## Step / reset
+As time advances, the sky rotates with the Earth’s spin, the Sun’s altitude
+changes day into night, and the planets move along their orbits. Stars are fixed
+on the celestial sphere; their rising, setting, and altitude change only because
+the Earth turns and the observer’s location changes.
 
-- `step(dt)` advances `TimeModel` and civil time by
-  `dt × CIVIL_HOURS_PER_SIM_SECOND × speed`, then resyncs LST.
-- `advanceCivilTimeHours` / `advanceSiderealTime` / `stepForward` support
-  Ctrl-drag and the step button (civil scrub).
-- `reset()` restores every Property and the timer (including presets and
-  selection).
+---
 
-## Catalogs / ephemeris
+## Core ideas students encounter
 
-- `BrightStarCatalog.ts` — ~4103 stars (mag ≤ 5.8) as flat RA/Dec/mag arrays
-  (J2000).
-- `NamedBrightStars.ts` — curated classroom stars for labels and selection.
-- `ConstellationLines.ts` — stick-figure segments for all 88 IAU
-  constellations (Stellarium western culture; HIP-keyed star table).
-- `PlanetEphemeris.ts` — `astronomy-engine` wrapper for Sun, Moon, Mercury–Neptune
-  (J2000 equatorial + visual magnitude + topocentric distance + Moon phase;
-  angular-diameter helpers).
-- `SolarSystemBodies.ts` — display metadata (color, exaggerated disc clamps,
-  physical radius) from Stellarium `planets.ini`.
+### Observer location
 
-Projection uses `equatorialToHorizontal` from `src/common/sky/SkyCoordinates.ts`
-for stars, constellations, and planets. Sun/Moon discs are sized from apparent
-angular diameter vs FOV; planets stay exaggerated unless `trueScaleBodiesProperty`
-is on.
+Latitude sets how high the celestial pole sits above the horizon and which
+stars are circumpolar. Longitude (with civil time) sets which part of the sky
+is overhead at a given clock time.
+
+Named presets jump to teaching sites:
+
+| Preset | Why it is useful |
+|---|---|
+| Boulder (default) | Mid-northern latitude; familiar starting view |
+| Greenwich | Longitude 0° — compare clock time and sky |
+| Equator | Zenith near the celestial equator; poles on the horizon |
+| North / South Pole | Extreme diurnal paths; opposite seasons |
+| Sydney | Southern hemisphere; December is summer |
+
+Scrubbing latitude or longitude marks the location as custom.
+
+### Civil time and the moving sky
+
+The simulation clock advances **civil time** (calendar date and UTC clock).
+Local sidereal time is derived from that civil time and the observer’s
+longitude; it is what actually lines up the star catalog with the horizon.
+
+At normal speed, about **one hour of sky time passes per second of wall time**,
+so diurnal motion is easy to see. SLOW / NORMAL / FAST change that rate.
+Play, pause, step, Ctrl-drag on the sky, and date presets all move the same
+civil clock.
+
+Date/time presets target classroom epochs (≈ 18:00 UTC so day/night contrast
+works across many longitudes):
+
+- Default (2024-06-21 — near June solstice)
+- March / September equinoxes
+- June / December solstices
+
+Year / month / day / hour controls jump to any UTC civil moment in range
+(1900–2100).
+
+### Look direction and field of view
+
+- **Azimuth** — compass direction of the view center (0° = north, 90° = east,
+  180° = south, …)
+- **Altitude** — angle above the horizon (0° on the horizon, 90° at the zenith)
+- **Field of view** — horizontal width of the sky panel (about 40°–120°)
+
+Drag or arrow keys pan; the scroll wheel or FOV slider zooms. Default look is
+south at a modest altitude — a natural outdoor “looking up” pose.
+
+### Coordinate systems (overlays)
+
+Students can turn on overlays that name the same sky in two common languages:
+
+| Overlay | What it shows |
+|---|---|
+| Altitude–azimuth grid | Local horizon system (where things are *from here*) |
+| Cardinals + zenith | N / S / E / W and the point straight up |
+| Local meridian | North–south great circle through the zenith |
+| Equatorial RA/Dec grid | Celestial coordinates (where things are *on the sphere*) |
+| Horizon / ground | Separates sky from Earth |
+
+Selecting a named star or planet shows magnitude, RA/Dec, and altitude/azimuth
+together — useful for connecting the two systems.
+
+### Stars, constellations, and planets
+
+- **Bright stars** — catalog stars down to about magnitude 5.8; a magnitude
+  limit hides fainter ones for less clutter.
+- **Star names** — curated bright-star labels (Preferences → Simulation, or
+  panel options depending on build).
+- **Constellations** — stick figures for all 88 IAU constellations (western
+  culture figures).
+- **Sun, Moon, planets** — positions from solar-system ephemerides. Sun and Moon
+  discs use true angular size; planets are exaggerated unless “true-scale discs”
+  is on (otherwise they would be nearly invisible).
+
+### Atmosphere and daylight
+
+With atmosphere on, sky color follows the Sun’s altitude (day → twilight →
+night), and stars fade as the Sun rises — closer to real outdoor viewing.
+Turning atmosphere off keeps a permanent night sky so stars stay fully visible
+for daytime teaching demos (Stellarium-style).
+
+---
+
+## Suggested classroom explorations
+
+1. **Latitude and Polaris** — From Boulder, find Polaris near the north celestial
+   pole; move to the equator or poles and watch how polar altitude tracks
+   latitude.
+2. **Seasons and day length** — Jump between June and December solstices at the
+   same site; compare Sun path and length of night. Repeat from Sydney.
+3. **Equinoxes** — On an equinox preset, check where the Sun rises/sets relative
+   to east/west with the horizon and cardinals on.
+4. **Northern vs southern sky** — Same UTC epoch in Boulder and Sydney: which
+   constellations are up? Is Orion “upright”?
+5. **Civil time vs sky** — Pause at noon and midnight (UTC hour control); note
+   which stars are up. Advance time with play or Ctrl-drag and watch the whole
+   sky rotate.
+6. **Coordinate translation** — Select a bright star; read RA/Dec and alt/az,
+   then turn on both grids so students see both frames at once.
+7. **Planet scale** — Toggle true-scale discs next to the Moon to discuss why
+   planets look like points to the naked eye.
+
+---
+
+## Sharing a starting sky (deep links)
+
+You can open the sim with a prepared observer and epoch in the URL, for example:
+
+`?lat=-33.9&lon=151.2&date=2024-12-21T10:00:00Z&fov=60&magLimit=4`
+
+Useful parameters: `lat`, `lon`, `date` (ISO-8601 UTC), `fov`, `magLimit`, plus
+optional toggles for star names, constellation lines, and planet names. Full
+list: [implementation-notes.md](./implementation-notes.md#deep-link-query-parameters).
+
+---
+
+## What the model simplifies
+
+Zenith is a teaching planetarium, not a full-sky survey tool:
+
+- No atmospheric refraction, light pollution maps, or telescope optics
+- No planetary moons, Saturn rings, eclipses, or deep-sky imagery
+- Constellation figures are cultural stick figures, not constellation boundaries
+- Planet discs may be exaggerated for visibility (unless true-scale is enabled)
+- Time control is educational (sped-up civil hours), not a real-time clock by
+  default
+
+Those limits keep the interface focused on location, time, coordinates, and
+naked-eye sky motion.

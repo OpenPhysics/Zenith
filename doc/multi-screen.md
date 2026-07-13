@@ -1,52 +1,64 @@
 # Multi-Screen Simulations
 
-This template ships as a **single-screen** simulation. Many physics simulations
-expose multiple conceptual modes — "Intro" + "Lab", "Basics" + "Advanced", etc.
-This guide shows how to extend the template to two or more screens.
+Developer guide for extending Zenith beyond its current **single planetarium
+screen**. For the pedagogical model and architecture notes, see
+[README.md](./README.md).
+
+A natural split for this sim is **Planetarium** (first-person FOV — what ships
+today) plus a second mode such as **All-Sky** (whole celestial sphere as a
+chart). Other classroom pairings work the same way: Planetarium + Seasons,
+Planetarium + Coordinates, etc. This guide uses Planetarium + All-Sky
+throughout.
 
 ---
 
 ## Architecture patterns
 
-### Single-screen (template default)
+### Single-screen (current Zenith)
 
 ```
 main.ts
   └─ ZenithScreen            (Screen<ZenithModel, ZenithScreenView>)
-       ├─ ZenithModel         owns all state
-       └─ ZenithScreenView    owns all visuals
+       ├─ ZenithModel         observer + civil clock + look/FOV + overlays
+       └─ ZenithScreenView    PlanetariumSkyNode + controls
 ```
 
 ### Multi-screen with independent state (simplest)
 
-Each screen is completely self-contained. Use this when screens have no shared
-physical state — for instance an "Intro" that is purely explanatory and a "Lab"
-with interactive controls.
+Each screen is self-contained. Use this when screens do not share observer
+state — for example a static “About the sky” intro and a fully separate
+planetarium lab.
 
 ```
 main.ts
-  ├─ IntroScreen           (Screen<IntroModel, IntroScreenView>)
-  │    ├─ IntroModel
-  │    └─ IntroScreenView
-  └─ LabScreen             (Screen<LabModel, LabScreenView>)
-       ├─ LabModel
-       └─ LabScreenView
+  ├─ PlanetariumScreen     (Screen<ZenithModel, ZenithScreenView>)   ← existing
+  │    ├─ ZenithModel
+  │    └─ ZenithScreenView
+  └─ AllSkyScreen          (Screen<AllSkyModel, AllSkyScreenView>)
+       ├─ AllSkyModel
+       └─ AllSkyScreenView
 ```
 
-### Multi-screen with shared model (recommended for real sims)
+### Multi-screen with shared model (recommended)
 
-A top-level "root model" owns shared state (e.g. selected material, common
-parameters). Each screen model receives a reference to it.
+A root **observer** model owns location and civil time so switching tabs keeps
+the same “where / when.” Each screen model receives that shared reference and
+adds view-specific state (look/FOV on Planetarium; chart projection on All-Sky).
 
 ```
-main.ts  →  creates FrictionModel (shared)
-  ├─ IntroScreen    receives FrictionModel → IntroModel(frictionModel)
-  └─ LabScreen      receives FrictionModel → LabModel(frictionModel)
+main.ts  →  creates ObserverModel (lat, lon, civilTime, …)
+  ├─ PlanetariumScreen    → ZenithModel(observer)
+  └─ AllSkyScreen         → AllSkyModel(observer)
 ```
+
+Shared candidates in Zenith: `latitudeProperty`, `longitudeProperty`,
+`civilTimeMsProperty` / LST sync, location & epoch presets, magnitude limit,
+atmosphere / planet toggles. Keep look azimuth, altitude, and FOV on the
+planetarium screen only.
 
 ---
 
-## Step-by-step: adding a second screen
+## Step-by-step: adding an All-Sky screen
 
 ### 1 — Add strings
 
@@ -54,10 +66,10 @@ main.ts  →  creates FrictionModel (shared)
 
 ```json
 {
-  "title": "Friction",
+  "title": "Zenith",
   "screens": {
-    "intro": "Intro",
-    "lab": "Lab"
+    "planetarium": "Planetarium",
+    "allSky": "All-Sky"
   }
 }
 ```
@@ -71,97 +83,129 @@ at compile time if any key is missing (see the `satisfies` checks in
 ```typescript
 // src/i18n/StringManager.ts
 public getScreenNames(): {
-  readonly introStringProperty: ReadOnlyProperty<string>;
-  readonly labStringProperty:   ReadOnlyProperty<string>;
+  readonly planetariumStringProperty: ReadOnlyProperty<string>;
+  readonly allSkyStringProperty: ReadOnlyProperty<string>;
 } {
   return {
-    introStringProperty: stringProperties.screens.introStringProperty,
-    labStringProperty:   stringProperties.screens.labStringProperty,
+    planetariumStringProperty: stringProperties.screens.planetariumStringProperty,
+    allSkyStringProperty: stringProperties.screens.allSkyStringProperty,
   };
 }
 ```
 
 ### 3 — Create the second screen folder
 
-Mirror the structure of `src/zenith-screen/`:
+Keep `src/zenith-screen/` as the planetarium; add a sibling for the chart:
 
 ```
 src/
-├─ intro-screen/
-│   ├─ IntroScreen.ts
+├─ zenith-screen/                 ← Planetarium (existing)
+│   ├─ ZenithScreen.ts
 │   ├─ model/
-│   │   └─ IntroModel.ts
+│   │   └─ ZenithModel.ts
 │   └─ view/
-│       ├─ IntroScreenView.ts
-│       ├─ IntroScreenSummaryContent.ts
-│       └─ IntroKeyboardHelpContent.ts
-└─ lab-screen/
-    ├─ LabScreen.ts
+│       ├─ ZenithScreenView.ts
+│       ├─ PlanetariumSkyNode.ts
+│       ├─ ZenithScreenSummaryContent.ts
+│       └─ ZenithKeyboardHelpContent.ts
+└─ all-sky-screen/
+    ├─ AllSkyScreen.ts
     ├─ model/
-    │   └─ LabModel.ts
+    │   └─ AllSkyModel.ts
     └─ view/
-        ├─ LabScreenView.ts
-        ├─ LabScreenSummaryContent.ts
-        └─ LabKeyboardHelpContent.ts
+        ├─ AllSkyScreenView.ts
+        ├─ AllSkyChartNode.ts       ← e.g. zenith-centered whole-sky plot
+        ├─ AllSkyScreenSummaryContent.ts
+        └─ AllSkyKeyboardHelpContent.ts
 ```
 
-Each screen file follows the same `Screen<Model, View>` pattern as the
-existing `ZenithScreen.ts`.
+Each screen file follows the same `Screen<Model, View>` pattern as
+`ZenithScreen.ts`. Reuse `src/common/sky/` (`SkyCoordinates`, `PlanetEphemeris`)
+and the star / constellation catalogs from both screens.
 
-### 4 — (Optional) Create a shared root model
+### 4 — (Optional) Create a shared observer model
 
-If screens share state, create a top-level model before constructing screens:
+If location and civil time should persist across tabs:
 
 ```typescript
-// src/model/FrictionModel.ts
-import { BooleanProperty, NumberProperty } from "scenerystack/axon";
+// src/model/ObserverModel.ts
+import { NumberProperty } from "scenerystack/axon";
+import {
+  DEFAULT_CIVIL_TIME_MS,
+  DEFAULT_LATITUDE_DEG,
+  DEFAULT_LONGITUDE_DEG,
+} from "../SimConstants.js";
 
-export class FrictionModel {
-  public readonly surfaceTypeProperty = new StringProperty("wood");
-  public readonly normalForceProperty = new NumberProperty(10, { units: "N" });
+export class ObserverModel {
+  public readonly latitudeProperty = new NumberProperty(DEFAULT_LATITUDE_DEG);
+  public readonly longitudeProperty = new NumberProperty(DEFAULT_LONGITUDE_DEG);
+  public readonly civilTimeMsProperty = new NumberProperty(DEFAULT_CIVIL_TIME_MS);
 
   public reset(): void {
-    this.surfaceTypeProperty.reset();
-    this.normalForceProperty.reset();
+    this.latitudeProperty.reset();
+    this.longitudeProperty.reset();
+    this.civilTimeMsProperty.reset();
   }
 }
 ```
 
-Per-screen models then take it as a constructor argument:
+Per-screen models take it as a constructor argument:
 
 ```typescript
-// src/intro-screen/model/IntroModel.ts
-export class IntroModel implements TModel {
-  public constructor(public readonly shared: FrictionModel) {}
+// src/zenith-screen/model/ZenithModel.ts  (sketch)
+export class ZenithModel implements TModel {
+  public constructor(public readonly observer: ObserverModel) {
+    // look/FOV, overlays, selection stay on this screen
+  }
 
-  public step(_dt: number): void { /* … */ }
-  public reset(): void { this.shared.reset(); }
+  public step(dt: number): void { /* advance observer.civilTimeMsProperty, sync LST */ }
+  public reset(): void {
+    this.observer.reset();
+    /* reset look/FOV and planetarium-only Properties */
+  }
 }
 ```
+
+```typescript
+// src/all-sky-screen/model/AllSkyModel.ts
+export class AllSkyModel implements TModel {
+  public constructor(public readonly observer: ObserverModel) {}
+
+  public step(dt: number): void { /* same civil clock via observer */ }
+  public reset(): void { this.observer.reset(); /* reset chart-only state */ }
+}
+```
+
+Move LST sync, location/epoch presets, and ephemeris inputs onto `ObserverModel`
+(or keep thin wrappers on each screen model that read the same Properties).
 
 ### 5 — Register both screens in main.ts
 
 ```typescript
 // src/main.ts  (inside onReadyToLaunch)
 
-// Shared model — created once, passed to both screens
-const frictionModel = new FrictionModel();
+const observer = new ObserverModel();
 
 const screens = [
-  new IntroScreen(frictionModel, {
-    name: stringManager.getScreenNames().introStringProperty,
-    tandem: Tandem.ROOT.createTandem("introScreen"),
+  new ZenithScreen(observer, {
+    name: stringManager.getScreenNames().planetariumStringProperty,
+    tandem: Tandem.ROOT.createTandem("planetariumScreen"),
     backgroundColorProperty: ZenithColors.backgroundColorProperty,
+    preferences: simPreferences,
   }),
-  new LabScreen(frictionModel, {
-    name: stringManager.getScreenNames().labStringProperty,
-    tandem: Tandem.ROOT.createTandem("labScreen"),
+  new AllSkyScreen(observer, {
+    name: stringManager.getScreenNames().allSkyStringProperty,
+    tandem: Tandem.ROOT.createTandem("allSkyScreen"),
     backgroundColorProperty: ZenithColors.backgroundColorProperty,
+    preferences: simPreferences,
   }),
 ];
 
 const sim = new Sim(stringManager.getTitleStringProperty(), screens, { … });
 ```
+
+Pass `ZenithPreferencesModel` into both screens if star names / constellations /
+planet labels should stay in sync with Preferences → Simulation.
 
 ---
 
@@ -189,8 +233,9 @@ Multi-screen sims show a home screen by default. Each screen needs a 548×373 px
 import { ScreenIcon } from "scenerystack/sim";
 import { Rectangle } from "scenerystack/scenery";
 
+// Prefer a tiny sky sketch per screen (horizon strip vs full-sky disc)
 const icon = new ScreenIcon(
-  new Rectangle(0, 0, 548, 373, { fill: ZenithColors.accentColorProperty }),
+  new Rectangle(0, 0, 548, 373, { fill: ZenithColors.backgroundColorProperty }),
   { maxIconWidthProportion: 1, maxIconHeightProportion: 1 }
 );
 ```
@@ -202,17 +247,27 @@ Pass it as `homeScreenIcon` and `navigationBarIcon` on the Screen options.
 ## Accessibility across screens
 
 Each screen must have its own `ScreenSummaryContent` and `KeyboardHelpContent`.
-The strings live under per-screen keys in the a11y block:
+The strings live under per-screen keys in the a11y block (Zenith already nests
+planetarium a11y under a flat `a11y` object — split when you add a second
+screen):
 
 ```json
 "a11y": {
-  "intro": {
-    "screenSummary": { … },
-    "currentDetails": "…"
+  "planetarium": {
+    "screenSummary": {
+      "playArea": "First-person planetarium view of the sky…",
+      "controlArea": "…",
+      "interactionHint": "Drag the sky to look around…"
+    },
+    "currentDetails": "Latitude {{latitude}}°, looking toward…"
   },
-  "lab": {
-    "screenSummary": { … },
-    "currentDetails": "…"
+  "allSky": {
+    "screenSummary": {
+      "playArea": "All-sky chart centered on the zenith…",
+      "controlArea": "…",
+      "interactionHint": "…"
+    },
+    "currentDetails": "Latitude {{latitude}}°, local sidereal time {{lst}} h…"
   }
 }
 ```
@@ -220,8 +275,8 @@ The strings live under per-screen keys in the a11y block:
 Expose them via separate methods in `StringManager`:
 
 ```typescript
-public getIntroA11yStrings() { return stringProperties.a11y.intro; }
-public getLabA11yStrings()   { return stringProperties.a11y.lab; }
+public getPlanetariumA11yStrings() { return stringProperties.a11y.planetarium; }
+public getAllSkyA11yStrings() { return stringProperties.a11y.allSky; }
 ```
 
 ---
@@ -261,7 +316,7 @@ you share tooling while keeping each sim independent:
 physics-sims/
 ├─ package.json          # workspace root (workspaces: ["sims/*"])
 ├─ sims/
-│   ├─ friction/         # forked from this template
+│   ├─ zenith/           # this planetarium sim
 │   ├─ waves/
 │   └─ optics/
 └─ shared/               # optional: shared assets, design tokens

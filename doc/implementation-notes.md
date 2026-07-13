@@ -1,10 +1,17 @@
-# Implementation Notes - Zenith
+# Implementation Notes — Zenith (for developers)
 
-## Architecture Overview
+Developer guide to architecture, model state, projection, and extension points.
+For the pedagogical / classroom description of what the sim models, see
+[model.md](./model.md). Template multi-screen patterns:
+[multi-screen.md](./multi-screen.md).
 
-Zenith is a SceneryStack **first-person planetarium**. The model owns observer
-location, civil time (with derived LST), look/FOV state, display toggles, and
-object selection; the view projects a bright-star catalog, named-star labels,
+---
+
+## Architecture overview
+
+Zenith is a SceneryStack **first-person planetarium**. `ZenithModel` owns
+observer location, civil time (with derived LST), look/FOV, display toggles, and
+object selection. The view projects the bright-star catalog, named-star labels,
 constellation stick figures, solar-system discs, and coordinate overlays into a
 rectangular sky panel.
 
@@ -32,10 +39,66 @@ src/zenith-screen/model/SolarSystemBodies.ts
 reference/stellarium-web-engine/   (gitignored local reference)
 ```
 
+Inspired by Stellarium Web Engine’s observer → frame → project path, implemented
+in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
+`astronomy-engine`; visual colors/radii follow Stellarium `planets.ini`.
+
+---
+
+## Model state (`ZenithModel`)
+
+| Property | Units | Notes |
+|---|---|---|
+| `timer.isPlayingProperty` | — | Play/pause for sky motion (`TimeModel`) |
+| `timer.timeProperty` | s | Elapsed simulation time |
+| `timeSpeedProperty` | TimeSpeed | SLOW / NORMAL / FAST multiplier |
+| `locationPresetProperty` | LocationPreset | Named sites; `CUSTOM` when lat/lon scrubbed |
+| `epochPresetProperty` | EpochPreset | Solstice/equinox jumps; `CUSTOM` when time advances |
+| `latitudeProperty` | degrees (+N) | Observer latitude |
+| `longitudeProperty` | degrees (+E) | Observer longitude |
+| `civilTimeMsProperty` | ms (UTC epoch) | Advances while playing; drives ephemerides |
+| `localSiderealTimeHoursProperty` | hours `[0, 24)` | Synced from GAST + longitude |
+| `lookAzimuthDegProperty` | degrees (N→E) | FOV center azimuth |
+| `lookAltitudeDegProperty` | degrees | FOV center altitude |
+| `fieldOfViewDegProperty` | degrees | Horizontal FOV |
+| `showGridProperty` | — | Alt/az grid + tick labels |
+| `showCardinalsProperty` | — | N/S/E/W labels + zenith marker |
+| `showMeridianProperty` | — | Local meridian arcs |
+| `showEquatorialGridProperty` | — | Coarse RA/Dec grid + tick labels |
+| `showHorizonProperty` | — | Ground band + horizon line |
+| `showAtmosphereProperty` | — | Twilight sky colors + daytime star fade |
+| `showPlanetsProperty` | — | Sun / Moon / planets |
+| `trueScaleBodiesProperty` | — | Planet discs use true angular size (Sun/Moon always do) |
+| `showPlanetLabelsProperty` | — | Name tags (also Preferences; survives Reset All) |
+| `showStarLabelsProperty` | — | Curated bright-star name tags (Preferences) |
+| `showConstellationsProperty` | — | Stick figures (Preferences) |
+| `magnitudeLimitProperty` | mag | Cull fainter catalog stars |
+| `selectedObjectProperty` | SelectedSkyObject \| null | Click/keyboard-selected star or planet |
+| `solarAltitudeDegProperty` | degrees | Derived; drives twilight sky + star fade |
+
+Defaults (Boulder, CO; look south; epoch `2024-06-21 18:00 UTC`) and ranges live
+in `src/SimConstants.ts`. Named location / epoch tables:
+`LocationPreset.ts`, `EpochPreset.ts`. Startup deep-links:
+`src/preferences/zenithQueryParameters.ts`.
+
+### Step / reset
+
+- `step(dt)` advances `TimeModel` and civil time by
+  `dt × CIVIL_HOURS_PER_SIM_SECOND × speed`, then resyncs LST.
+- `advanceCivilTimeHours` / `advanceSiderealTime` / `stepForward` support
+  Ctrl-drag and the step button (civil scrub).
+- `reset()` restores every Property and the timer (including presets and
+  selection). Overlay preferences that live in Preferences
+  (`showStarLabels`, `showConstellations`, `showPlanetLabels`) are **not**
+  cleared by Reset All.
+
+---
+
 ## Projection pipeline
 
-1. Catalog star, named star, constellation endpoint, or planet (RA hours, Dec degrees;
-   catalog/named/planets are J2000; constellation HIPs are Hipparcos J1991.25)
+1. Catalog star, named star, constellation endpoint, or planet (RA hours, Dec
+   degrees; catalog/named/planets are J2000; constellation HIPs are Hipparcos
+   J1991.25)
 2. `equatorialToHorizontal(ra, dec, lat, lst)` → alt/az
 3. Cull below horizon (when shown) and outside FOV
 4. Map to panel pixels centered on `lookAzimuth` / `lookAltitude` with
@@ -45,41 +108,56 @@ reference/stellarium-web-engine/   (gitignored local reference)
 LST is `normalizeHours(SiderealTime(civil) + longitudeDeg/15)` so stars and
 planets share one clock.
 
-Inspired by Stellarium Web Engine’s observer → frame → project path, implemented
-in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
-`astronomy-engine`; visual colors/radii follow `planets.ini`.
+Sun and Moon discs are always sized from apparent angular diameter vs FOV
+(degrees → pixels). Planets stay exaggerated for visibility unless
+`trueScaleBodiesProperty` is on.
+
+Sky color follows solar altitude (day → twilight → night) when atmosphere is on.
+Stars, star labels, and constellation figures fade as the Sun rises. Atmosphere
+off keeps a night sky with stars fully visible.
+
+---
+
+## Catalogs / ephemeris
+
+| Module | Role |
+|---|---|
+| `BrightStarCatalog.ts` | ~4103 stars (mag ≤ 5.8), flat RA/Dec/mag arrays (J2000) |
+| `NamedBrightStars.ts` | Curated classroom stars for labels and selection |
+| `ConstellationLines.ts` | Stick-figure segments for all 88 IAU constellations (Stellarium western culture; HIP-keyed) |
+| `PlanetEphemeris.ts` | `astronomy-engine` wrapper: Sun, Moon, Mercury–Neptune (J2000 equatorial, mag, distance, Moon phase, angular diameter) |
+| `SolarSystemBodies.ts` | Display metadata (color, exaggerated disc clamps, physical radius) from `planets.ini` |
+
+Shared transform: `equatorialToHorizontal` in `src/common/sky/SkyCoordinates.ts`.
+
+---
 
 ## Interaction
 
-- Drag / arrows → pan look az/alt
-- Ctrl-drag / Ctrl+arrows → advance civil time (LST follows)
-- Click (small motion) → select nearest named star or planet
-- N / P → cycle selectable objects in the FOV
-- Escape → clear selection
-- Scroll wheel → change FOV
-- TimeControlNode → play/pause/step + SLOW/NORMAL/FAST
-- Location / epoch ComboBoxes → jump observer site or civil epoch
-- Year / month / day / hour NumberControls → arbitrary UTC civil jump (marks epoch CUSTOM)
-- Checkboxes → alt/az grid (with tick labels), cardinals, meridian, RA/Dec grid (with tick labels), horizon, planets, atmosphere, true-scale discs
-- Preferences → Simulation → star names, constellation lines, planet names
-  (these overlays outlive Reset All; also seedable via query parameters)
+Wired in `attachPlanetariumInteraction` and control-panel listeners:
 
-Sun and Moon discs are always sized from apparent angular diameter vs FOV
-(degrees → pixels). Planets stay exaggerated for visibility unless **True-scale
-discs** is checked.
+| Input | Effect |
+|---|---|
+| Drag / arrows | Pan look az/alt |
+| Ctrl-drag / Ctrl+arrows | Advance civil time (LST follows) |
+| Click (small motion) | Select nearest named star or planet |
+| N / P | Cycle selectable objects in the FOV |
+| Escape | Clear selection |
+| Scroll wheel | Change FOV |
+| TimeControlNode | Play/pause/step + SLOW/NORMAL/FAST |
+| Location / epoch ComboBoxes | Jump observer site or civil epoch |
+| Year / month / day / hour NumberControls | Arbitrary UTC civil jump → epoch `CUSTOM` |
+| Checkboxes | Alt/az grid, cardinals, meridian, RA/Dec grid, horizon, planets, atmosphere, true-scale discs |
+| Preferences → Simulation | Star names, constellation lines, planet names (also seedable via query params) |
 
-Sky color follows solar altitude (day → twilight → night) when atmosphere is on.
-Stars, star labels, and constellation figures fade as the Sun rises. Turning
-atmosphere off keeps a night sky with stars fully visible (Stellarium-style).
+Keyboard Shortcuts (`?`) come from `ZenithKeyboardHelpContent` / `ZenithHotkeyData`.
 
-Keyboard Shortcuts (`?`) are documented in `ZenithKeyboardHelpContent` from
-`ZenithHotkeyData` (pan, Ctrl+arrows for civil time, N/P select, Escape) plus
-scroll-wheel FOV.
+---
 
 ## Deep-link query parameters
 
-Public startup params in `zenithQueryParameters.ts` seed `ZenithModel`
-(and overlay preferences where noted):
+Public startup params in `zenithQueryParameters.ts` seed `ZenithModel` (and
+overlay preferences where noted):
 
 | Param | Meaning | Example |
 |---|---|---|
@@ -93,7 +171,10 @@ Public startup params in `zenithQueryParameters.ts` seed `ZenithModel`
 | `showPlanetLabels` | Planet labels (also Preferences) | `&showPlanetLabels=false` |
 
 Example classroom link:
+
 `index.html?lat=-33.9&lon=151.2&date=2024-12-21T10:00:00Z&fov=60&magLimit=4`
+
+---
 
 ## Deferred
 
