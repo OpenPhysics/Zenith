@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#050814"/>
+  <!-- horizon ground -->
+  <ellipse cx="256" cy="420" rx="280" ry="70" fill="#0a101c"/>
+  <!-- dome arc -->
+  <path d="M56 400 A200 200 0 0 1 456 400" fill="none" stroke="#7ec8ff" stroke-width="14"/>
+  <!-- zenith marker -->
+  <circle cx="256" cy="200" r="10" fill="#f4f7ff"/>
+  <!-- stars -->
+  <circle cx="140" cy="280" r="4" fill="#f4f7ff"/>
+  <circle cx="200" cy="240" r="3" fill="#f4f7ff"/>
+  <circle cx="320" cy="250" r="5" fill="#f4f7ff"/>
+  <circle cx="380" cy="300" r="3" fill="#f4f7ff"/>
+  <circle cx="290" cy="180" r="3" fill="#7ec8ff"/>
+  <circle cx="180" cy="320" r="2.5" fill="#f4f7ff"/>
+</svg>

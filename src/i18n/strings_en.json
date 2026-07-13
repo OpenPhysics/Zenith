@@ -1,0 +1,21 @@
+{
+  "title": "Zenith",
+  "screens": {
+    "planetarium": "Planetarium"
+  },
+  "a11y": {
+    "screenSummary": {
+      "playArea": "The play area shows a planetarium view of the night sky for an observer on Earth.",
+      "controlArea": "The control area has a Reset All button that returns the planetarium to its starting state.",
+      "interactionHint": "Explore the sky by changing the observer location and watching the dome rotate."
+    },
+    "currentDetails": "The planetarium is in its initial state.",
+    "controls": {
+      "exampleControl": "Example control"
+    }
+  },
+  "preferences": {
+    "title": "Simulation",
+    "exampleToggle": "Example Toggle"
+  }
+}

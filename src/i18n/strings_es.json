@@ -1,0 +1,21 @@
+{
+  "title": "Zenith",
+  "screens": {
+    "planetarium": "Planetario"
+  },
+  "a11y": {
+    "screenSummary": {
+      "playArea": "El área de juego muestra una vista de planetario del cielo nocturno para un observador en la Tierra.",
+      "controlArea": "El área de control tiene un botón Restablecer todo que devuelve el planetario a su estado inicial.",
+      "interactionHint": "Explora el cielo cambiando la ubicación del observador y observando cómo gira la cúpula."
+    },
+    "currentDetails": "El planetario está en su estado inicial.",
+    "controls": {
+      "exampleControl": "Control de ejemplo"
+    }
+  },
+  "preferences": {
+    "title": "Simulación",
+    "exampleToggle": "Ejemplo de alternancia"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "title": "Zenith",
+  "screens": {
+    "planetarium": "Planétarium"
+  },
+  "a11y": {
+    "screenSummary": {
+      "playArea": "La zone de jeu montre une vue planétarium du ciel nocturne pour un observateur sur Terre.",
+      "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène le planétarium à son état initial.",
+      "interactionHint": "Explorez le ciel en changeant la position de l'observateur et en regardant le dôme tourner."
+    },
+    "currentDetails": "Le planétarium est dans son état initial.",
+    "controls": {
+      "exampleControl": "Contrôle d'exemple"
+    }
+  },
+  "preferences": {
+    "title": "Simulation",
+    "exampleToggle": "Exemple de bascule"
+  }
+}
