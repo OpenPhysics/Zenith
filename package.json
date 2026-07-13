@@ -34,6 +34,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "tsx scripts/generate-icons.ts",
+    "constellations": "tsx scripts/generate-constellation-figures.ts",
     "rename": "tsx scripts/rename-sim.ts",
     "clean": "rm -rf dist",
     "prepare": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true"

@@ -32,6 +32,7 @@ import {
   DEFAULT_SHOW_EQUATORIAL_GRID,
   DEFAULT_SHOW_MERIDIAN,
   DEFAULT_SHOW_PLANETS,
+  DEFAULT_TRUE_SCALE_BODIES,
   FIELD_OF_VIEW_RANGE,
   LATITUDE_RANGE,
   LONGITUDE_RANGE,
@@ -90,7 +91,7 @@ export class ZenithModel implements TModel {
   /** Horizontal field of view in degrees. */
   public readonly fieldOfViewDegProperty: NumberProperty;
 
-  /** Whether altitude tick overlays are drawn. */
+  /** Whether alt/az grid overlays are drawn. */
   public readonly showGridProperty: BooleanProperty;
 
   /** Whether N/S/E/W labels and a zenith marker are drawn. */
@@ -113,6 +114,12 @@ export class ZenithModel implements TModel {
 
   /** Whether Sun / Moon / planets are drawn. */
   public readonly showPlanetsProperty: BooleanProperty;
+
+  /**
+   * When true, planet discs use true apparent angular size (like the Sun and
+   * Moon always do). When false, planets stay exaggerated for visibility.
+   */
+  public readonly trueScaleBodiesProperty: BooleanProperty;
 
   /**
    * Whether preferred planet name labels are drawn.
@@ -184,6 +191,7 @@ export class ZenithModel implements TModel {
     this.showHorizonProperty = new BooleanProperty(true);
     this.showAtmosphereProperty = new BooleanProperty(DEFAULT_SHOW_ATMOSPHERE);
     this.showPlanetsProperty = new BooleanProperty(DEFAULT_SHOW_PLANETS);
+    this.trueScaleBodiesProperty = new BooleanProperty(DEFAULT_TRUE_SCALE_BODIES);
     // Label / constellation overlays live in Preferences and are shared here.
     this.showPlanetLabelsProperty = preferences.showPlanetLabelsProperty;
     this.showStarLabelsProperty = preferences.showStarLabelsProperty;
@@ -304,6 +312,7 @@ export class ZenithModel implements TModel {
     this.showHorizonProperty.reset();
     this.showAtmosphereProperty.reset();
     this.showPlanetsProperty.reset();
+    this.trueScaleBodiesProperty.reset();
     // Preference-backed overlays (star names, constellations, planet labels) are
     // not reset — they outlive Reset All.
     this.magnitudeLimitProperty.reset();

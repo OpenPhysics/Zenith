@@ -34,10 +34,13 @@ reference/stellarium-web-engine/   (gitignored local reference)
 
 ## Projection pipeline
 
-1. Catalog star, named star, constellation endpoint, or planet (RA hours, Dec degrees, J2000)
+1. Catalog star, named star, constellation endpoint, or planet (RA hours, Dec degrees;
+   catalog/named/planets are J2000; constellation HIPs are Hipparcos J1991.25)
 2. `equatorialToHorizontal(ra, dec, lat, lst)` → alt/az
 3. Cull below horizon (when shown) and outside FOV
-4. Map to panel pixels centered on `lookAzimuth` / `lookAltitude` with width = FOV
+4. Map to panel pixels centered on `lookAzimuth` / `lookAltitude` with
+   horizontal span = FOV and vertical span = FOV × (height / width), so °/px
+   is equal in X and Y under zoom and aspect-ratio changes
 
 LST is `normalizeHours(SiderealTime(civil) + longitudeDeg/15)` so stars and
 planets share one clock.
@@ -56,9 +59,14 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 - Scroll wheel → change FOV
 - TimeControlNode → play/pause/step + SLOW/NORMAL/FAST
 - Location / epoch ComboBoxes → jump observer site or civil epoch
-- Checkboxes → altitude grid, cardinals, meridian, RA/Dec grid, horizon, planets, atmosphere
+- Year / month / day / hour NumberControls → arbitrary UTC civil jump (marks epoch CUSTOM)
+- Checkboxes → alt/az grid (with tick labels), cardinals, meridian, RA/Dec grid (with tick labels), horizon, planets, atmosphere, true-scale discs
 - Preferences → Simulation → star names, constellation lines, planet names
   (these overlays outlive Reset All; also seedable via query parameters)
+
+Sun and Moon discs are always sized from apparent angular diameter vs FOV
+(degrees → pixels). Planets stay exaggerated for visibility unless **True-scale
+discs** is checked.
 
 Sky color follows solar altitude (day → twilight → night) when atmosphere is on.
 Stars, star labels, and constellation figures fade as the Sun rises. Turning
@@ -89,7 +97,6 @@ Example classroom link:
 
 ## Deferred
 
-- Accurate angular disc sizes / Moon phase / Saturn rings
+- Saturn rings
 - Planetary moons, eclipses, HiPS imagery
-- Full IAU constellation set (classroom subset ships today)
 - Circumpolar / rise–set cues for a selected object

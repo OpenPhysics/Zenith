@@ -42,6 +42,7 @@ describe("ZenithModel", () => {
     expect(model.lookAltitudeDegProperty.value).toBe(DEFAULT_LOOK_ALTITUDE_DEG);
     expect(model.fieldOfViewDegProperty.value).toBe(DEFAULT_FIELD_OF_VIEW_DEG);
     expect(model.showPlanetsProperty.value).toBe(true);
+    expect(model.trueScaleBodiesProperty.value).toBe(false);
     expect(model.showAtmosphereProperty.value).toBe(true);
     expect(model.timer.isPlayingProperty.value).toBe(true);
     expect(model.timeSpeedProperty.value).toBe(TimeSpeed.NORMAL);
@@ -94,6 +95,7 @@ describe("ZenithModel", () => {
     model.fieldOfViewDegProperty.value = 60;
     model.showGridProperty.value = false;
     model.showPlanetsProperty.value = false;
+    model.trueScaleBodiesProperty.value = true;
     model.showAtmosphereProperty.value = false;
     model.showStarLabelsProperty.value = false;
     model.showConstellationsProperty.value = true;
@@ -120,6 +122,7 @@ describe("ZenithModel", () => {
     expect(model.fieldOfViewDegProperty.value).toBe(DEFAULT_FIELD_OF_VIEW_DEG);
     expect(model.showGridProperty.value).toBe(true);
     expect(model.showPlanetsProperty.value).toBe(true);
+    expect(model.trueScaleBodiesProperty.value).toBe(false);
     expect(model.showAtmosphereProperty.value).toBe(true);
     // Preference-backed overlays outlive Reset All.
     expect(model.showStarLabelsProperty.value).toBe(false);
@@ -148,5 +151,11 @@ describe("ZenithModel", () => {
   it("applies epoch presets to civil time", () => {
     model.epochPresetProperty.value = EpochPreset.DECEMBER_SOLSTICE;
     expect(model.civilTimeMsProperty.value).toBe(EPOCH_PRESET_CIVIL_MS.get(EpochPreset.DECEMBER_SOLSTICE));
+  });
+
+  it("marks epoch CUSTOM when civil time is set to an arbitrary date", () => {
+    model.civilTimeMsProperty.value = Date.UTC(2020, 0, 1, 3, 0, 0);
+    expect(model.epochPresetProperty.value).toBe(EpochPreset.CUSTOM);
+    expect(model.civilTimeMsProperty.value).toBe(Date.UTC(2020, 0, 1, 3, 0, 0));
   });
 });

@@ -1,12 +1,11 @@
 /**
  * ZenithScreenView.ts
  *
- * Root view for the planetarium screen. Hosts the first-person sky FOV and
- * observer / time / display controls.
+ * Root view for the planetarium screen. The sky fills the full visible window
+ * (including past layoutBounds); observer / time / display controls overlay it.
  */
 
 import { BooleanProperty, DerivedProperty, PatternStringProperty } from "scenerystack/axon";
-import { Bounds2 } from "scenerystack/dot";
 import { GridBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
 import { NumberControl, PhetFont, ResetAllButton, TimeControlNode } from "scenerystack/scenery-phet";
 import type { ScreenViewOptions } from "scenerystack/sim";
@@ -41,6 +40,7 @@ import { EpochPreset } from "../model/EpochPreset.js";
 import { LocationPreset } from "../model/LocationPreset.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import { attachPlanetariumInteraction } from "./attachPlanetariumInteraction.js";
+import { CivilDateTimeControl } from "./CivilDateTimeControl.js";
 import { PlanetariumSkyNode } from "./PlanetariumSkyNode.js";
 import { SelectedObjectReadout } from "./SelectedObjectReadout.js";
 import { ZenithScreenSummaryContent } from "./ZenithScreenSummaryContent.js";
@@ -75,7 +75,8 @@ export class ZenithScreenView extends ScreenView {
     const a11y = stringManager.getA11yStrings();
 
     // ── Background ────────────────────────────────────────────────────────────
-    const backgroundRect = new Rectangle(0, 0, this.layoutBounds.width, this.layoutBounds.height, {
+    // Fills the window (visibleBounds), which can extend past layoutBounds.
+    const backgroundRect = new Rectangle(0, 0, 1, 1, {
       fill: ZenithColors.backgroundColorProperty,
     });
     this.addChild(backgroundRect);
@@ -192,6 +193,8 @@ export class ZenithScreenView extends ScreenView {
       },
     );
 
+    const civilDateTimeControl = new CivilDateTimeControl(model);
+
     const civilTimeUtcProperty = new DerivedProperty([model.civilTimeMsProperty], formatCivilTimeUtc);
     const civilTimeReadout = new Text(
       new PatternStringProperty(controls.civilTimeStringProperty, {
@@ -286,6 +289,11 @@ export class ZenithScreenView extends ScreenView {
       controls.showPlanetsStringProperty,
       a11y.controls.showPlanetsStringProperty,
     );
+    const trueScaleCheckbox = checkbox(
+      model.trueScaleBodiesProperty,
+      controls.trueScaleBodiesStringProperty,
+      a11y.controls.trueScaleBodiesStringProperty,
+    );
 
     // Star names, constellation lines, and planet labels live in Preferences → Simulation.
     const displayToggles = new GridBox({
@@ -293,7 +301,7 @@ export class ZenithScreenView extends ScreenView {
         [gridCheckbox, cardinalsCheckbox],
         [meridianCheckbox, equatorialGridCheckbox],
         [horizonCheckbox, planetsCheckbox],
-        [atmosphereCheckbox],
+        [atmosphereCheckbox, trueScaleCheckbox],
       ],
       xSpacing: 8,
       ySpacing: 4,
@@ -311,6 +319,7 @@ export class ZenithScreenView extends ScreenView {
         longitudeControl,
         epochLabel,
         epochCombo,
+        civilDateTimeControl,
         civilTimeReadout,
         lstReadout,
         timeControl,
@@ -326,7 +335,7 @@ export class ZenithScreenView extends ScreenView {
       maxWidth: CONTROL_PANEL_WIDTH - 50,
     });
 
-    // Collapses to the title bar so the sky FOV can reclaim the right-hand space.
+    // Overlay panel: floats on top of the full-bleed sky (does not shrink it).
     this.controlPanel = new AccordionBox(panelContent, {
       titleNode: panelTitle,
       expandedProperty: new BooleanProperty(true),
@@ -354,15 +363,9 @@ export class ZenithScreenView extends ScreenView {
       accessibleHelpTextCollapsed: a11y.controls.controlPanelHelpCollapsedStringProperty,
     });
 
-    // ── Planetarium FOV play area ─────────────────────────────────────────────
-    // Initial bounds are refined by updatePlayAreaLayout once the panel is sized.
+    // ── Planetarium FOV play area (full visible window, under chrome) ─────────
     this.skyNode = new PlanetariumSkyNode(model, {
-      bounds: new Bounds2(
-        this.layoutBounds.minX + SCREEN_VIEW_MARGIN,
-        this.layoutBounds.minY + SCREEN_VIEW_MARGIN,
-        this.layoutBounds.maxX - CONTROL_PANEL_WIDTH - 2 * SCREEN_VIEW_MARGIN,
-        this.layoutBounds.maxY - SCREEN_VIEW_MARGIN,
-      ),
+      bounds: this.visibleBoundsProperty.value.copy(),
     });
     attachPlanetariumInteraction(this.skyNode, {
       model,
@@ -372,52 +375,50 @@ export class ZenithScreenView extends ScreenView {
     });
     this.addChild(this.skyNode);
 
-    // Selection readout sits over the play area so the control panel stays shorter.
+    // Selection readout sits over the sky (bottom-left).
     const selectionPanel = new SimPanel(selectedReadout, {
       xMargin: 8,
       yMargin: 6,
     });
     this.addChild(selectionPanel);
 
-    // Panel above the sky so the expand/collapse control stays clickable.
+    // Panel and Reset All sit above the sky so they remain interactive.
     this.addChild(this.controlPanel);
 
-    // ── Reset All button ──────────────────────────────────────────────────────
     const resetAllButton = new ResetAllButton({
       ...FLAT_RESET_ALL_BUTTON_OPTIONS,
       listener: () => {
         model.reset();
         this.reset();
       },
-      right: this.layoutBounds.maxX - SCREEN_VIEW_MARGIN,
-      bottom: this.layoutBounds.maxY - SCREEN_VIEW_MARGIN,
     });
     this.addChild(resetAllButton);
 
-    const updatePlayAreaLayout = (): void => {
-      this.controlPanel.right = this.layoutBounds.maxX - SCREEN_VIEW_MARGIN;
-      this.controlPanel.top = this.layoutBounds.minY + SCREEN_VIEW_MARGIN;
+    const updateChromeLayout = (): void => {
+      const visibleBounds = this.visibleBoundsProperty.value;
 
-      const playBounds = new Bounds2(
-        this.layoutBounds.minX + SCREEN_VIEW_MARGIN,
-        this.layoutBounds.minY + SCREEN_VIEW_MARGIN,
-        this.controlPanel.left - SCREEN_VIEW_MARGIN,
-        this.layoutBounds.maxY - SCREEN_VIEW_MARGIN,
-      );
-      this.skyNode.setViewBounds(playBounds);
+      this.controlPanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
+      this.controlPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
 
-      selectionPanel.left = playBounds.minX + SELECTION_PANEL_INSET;
-      selectionPanel.bottom = playBounds.maxY - SELECTION_PANEL_INSET;
+      selectionPanel.left = visibleBounds.minX + SELECTION_PANEL_INSET;
+      selectionPanel.bottom = visibleBounds.maxY - SELECTION_PANEL_INSET;
 
-      resetAllButton.right = this.layoutBounds.maxX - SCREEN_VIEW_MARGIN;
-      resetAllButton.bottom = this.layoutBounds.maxY - SCREEN_VIEW_MARGIN;
+      resetAllButton.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
+      resetAllButton.bottom = visibleBounds.maxY - SCREEN_VIEW_MARGIN;
       if (resetAllButton.top < this.controlPanel.bottom + RESET_ALL_PANEL_GAP) {
         resetAllButton.top = this.controlPanel.bottom + RESET_ALL_PANEL_GAP;
       }
     };
 
-    // Reflow when the accordion expands/collapses (and on first layout).
-    this.controlPanel.boundsProperty.link(updatePlayAreaLayout);
+    // Sky + background always fill the window (including past layoutBounds).
+    this.visibleBoundsProperty.link((visibleBounds) => {
+      backgroundRect.setRectBounds(visibleBounds);
+      this.skyNode.setViewBounds(visibleBounds);
+      updateChromeLayout();
+    });
+
+    // Keep Reset All clear when the accordion expands/collapses.
+    this.controlPanel.boundsProperty.lazyLink(updateChromeLayout);
 
     // ── Accessibility: keyboard / reading traversal order ─────────────────────
     // AccordionBox owns PDOM order for its content; include the box as a whole.

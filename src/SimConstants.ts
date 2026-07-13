@@ -95,6 +95,18 @@ export const HOURS_PER_SIDEREAL_DAY = 24;
  */
 export const DEFAULT_CIVIL_TIME_MS = Date.UTC(2024, 5, 21, 18, 0, 0);
 
+/** Allowed UTC year range for the civil date jump NumberControls. */
+export const CIVIL_YEAR_RANGE = new Range(1900, 2100);
+
+/** Calendar month range (1–12) for the civil date jump UI. */
+export const CIVIL_MONTH_RANGE = new Range(1, 12);
+
+/** Day-of-month range (1–31); enabled sub-range follows daysInUtcMonth. */
+export const CIVIL_DAY_RANGE = new Range(1, 31);
+
+/** UTC hour-of-day range for the civil date jump UI. */
+export const CIVIL_HOUR_RANGE = new Range(0, 23);
+
 // ── First-person planetarium FOV ──────────────────────────────────────────────
 
 /** Default look azimuth (degrees from North through East). Due south. */
@@ -151,6 +163,18 @@ export const DEFAULT_SHOW_ATMOSPHERE = true;
 /** Default: draw Sun / Moon / planets in the FOV. */
 export const DEFAULT_SHOW_PLANETS = true;
 
+/**
+ * Default: planets use exaggerated (magnitude-based) discs. Sun and Moon are
+ * always angularly correct; enabling true scale applies that to planets too.
+ */
+export const DEFAULT_TRUE_SCALE_BODIES = false;
+
+/**
+ * Floor for angularly sized discs (px) so true-scale planets remain a speck at
+ * wide FOV instead of vanishing entirely.
+ */
+export const MIN_ANGULAR_DISC_RADIUS_PX = 0.75;
+
 /** Default: draw name labels for preferred bodies. */
 export const DEFAULT_SHOW_PLANET_LABELS = true;
 
@@ -169,7 +193,7 @@ export const CARDINAL_EDGE_INSET_PX = 10;
 /** Default: draw the local meridian arc. */
 export const DEFAULT_SHOW_MERIDIAN = true;
 
-/** Default: equatorial RA/Dec grid off (altitude ticks remain the primary grid). */
+/** Default: equatorial RA/Dec grid off (alt/az grid remains the primary grid). */
 export const DEFAULT_SHOW_EQUATORIAL_GRID = false;
 
 /** Default: constellation stick figures off until the learner enables them. */
@@ -178,11 +202,29 @@ export const DEFAULT_SHOW_CONSTELLATIONS = false;
 /** Max screen-pixel distance for click-to-select a sky object. */
 export const SELECTION_HIT_RADIUS_PX = 18;
 
+/** Alt/az grid: altitude parallel step (degrees). */
+export const ALT_AZ_GRID_ALT_STEP_DEG = 15;
+
+/** Alt/az grid: azimuth meridian step (degrees). */
+export const ALT_AZ_GRID_AZ_STEP_DEG = 15;
+
+/** Alt/az grid altitude extent for parallels and tick labels (degrees). */
+export const ALT_AZ_GRID_ALT_MIN_DEG = -15;
+export const ALT_AZ_GRID_ALT_MAX_DEG = 90;
+
 /** Equatorial grid: RA step in hours. */
 export const EQUATORIAL_GRID_RA_STEP_HOURS = 2;
 
 /** Equatorial grid: Dec step in degrees. */
 export const EQUATORIAL_GRID_DEC_STEP_DEG = 15;
+
+/** Equatorial grid Dec extent for hour-circle polylines and RA tick labels (degrees). */
+export const EQUATORIAL_GRID_DEC_MIN_DEG = -80;
+export const EQUATORIAL_GRID_DEC_MAX_DEG = 80;
+
+/** Equatorial grid Dec extent for parallel lines and Dec tick labels (degrees). */
+export const EQUATORIAL_GRID_PARALLEL_DEC_MIN_DEG = -60;
+export const EQUATORIAL_GRID_PARALLEL_DEC_MAX_DEG = 60;
 
 ZenithNamespace.register("SimConstants", {
   SCREEN_VIEW_MARGIN,
@@ -196,6 +238,10 @@ ZenithNamespace.register("SimConstants", {
   SIDEREAL_HOURS_PER_SIM_SECOND,
   HOURS_PER_SIDEREAL_DAY,
   DEFAULT_CIVIL_TIME_MS,
+  CIVIL_YEAR_RANGE,
+  CIVIL_MONTH_RANGE,
+  CIVIL_DAY_RANGE,
+  CIVIL_HOUR_RANGE,
   DEFAULT_LOOK_AZIMUTH_DEG,
   DEFAULT_LOOK_ALTITUDE_DEG,
   DEFAULT_FIELD_OF_VIEW_DEG,
@@ -203,6 +249,8 @@ ZenithNamespace.register("SimConstants", {
   GROUND_FRACTION,
   DEFAULT_SHOW_ATMOSPHERE,
   DEFAULT_SHOW_PLANETS,
+  DEFAULT_TRUE_SCALE_BODIES,
+  MIN_ANGULAR_DISC_RADIUS_PX,
   DEFAULT_SHOW_PLANET_LABELS,
   DEFAULT_SHOW_STAR_LABELS,
   DEFAULT_SHOW_CARDINALS,

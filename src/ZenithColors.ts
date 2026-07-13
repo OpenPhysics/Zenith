@@ -154,11 +154,17 @@ const ZenithColors = {
   }),
 
   /**
-   * Alt/az grid ticks and meridian stroke in the FOV panel.
+   * Alt/az grid lines in the FOV panel.
    */
   gridColorProperty: new ProfileColorProperty(ZenithNamespace, "grid", {
     default: "#5a7a9a",
     projector: "#666666",
+  }),
+
+  /** Tick labels on the alt/az grid (slightly brighter than the stroke). */
+  gridLabelColorProperty: new ProfileColorProperty(ZenithNamespace, "gridLabel", {
+    default: "#9bb8d4",
+    projector: "#445566",
   }),
 
   // ── Solar-system body fills (from planets.ini RGB; projector = darkened) ─────
@@ -169,6 +175,15 @@ const ZenithColors = {
   moonColorProperty: new ProfileColorProperty(ZenithNamespace, "moon", {
     default: "#fafbf7",
     projector: "#888888",
+  }),
+
+  /**
+   * Unlit portion of the Moon disc (phase shadow).
+   * Near-black in default mode; medium gray in projector mode for contrast.
+   */
+  moonShadowColorProperty: new ProfileColorProperty(ZenithNamespace, "moonShadow", {
+    default: "#1a1e28",
+    projector: "#4a4a4a",
   }),
   mercuryColorProperty: new ProfileColorProperty(ZenithNamespace, "mercury", {
     default: "#faf6e9",
@@ -227,6 +242,12 @@ const ZenithColors = {
   equatorialGridColorProperty: new ProfileColorProperty(ZenithNamespace, "equatorialGrid", {
     default: "#3a5a7a",
     projector: "#8899aa",
+  }),
+
+  /** Tick labels on the equatorial RA/Dec grid (slightly brighter than the stroke). */
+  equatorialGridLabelColorProperty: new ProfileColorProperty(ZenithNamespace, "equatorialGridLabel", {
+    default: "#7aa0c0",
+    projector: "#445566",
   }),
 
   /** Highlight ring around the selected sky object. */

@@ -29,6 +29,7 @@ bodies appear on screen.
 | `showEquatorialGridProperty` | — | Coarse RA/Dec grid |
 | `showHorizonProperty` | — | Ground band + horizon line |
 | `showPlanetsProperty` | — | Sun / Moon / planets |
+| `trueScaleBodiesProperty` | — | Planet discs use true angular size (Sun/Moon always do) |
 | `showPlanetLabelsProperty` | — | Name tags for preferred bodies |
 | `showStarLabelsProperty` | — | Curated bright-star name tags |
 | `showConstellationsProperty` | — | Classroom stick figures |
@@ -55,12 +56,15 @@ in `src/SimConstants.ts`. Named location / epoch tables live in
 - `BrightStarCatalog.ts` — ~4103 stars (mag ≤ 5.8) as flat RA/Dec/mag arrays
   (J2000).
 - `NamedBrightStars.ts` — curated classroom stars for labels and selection.
-- `ConstellationLines.ts` — stick-figure segments (Ursa Major, Orion,
-  Cassiopeia, Southern Cross).
+- `ConstellationLines.ts` — stick-figure segments for all 88 IAU
+  constellations (Stellarium western culture; HIP-keyed star table).
 - `PlanetEphemeris.ts` — `astronomy-engine` wrapper for Sun, Moon, Mercury–Neptune
-  (J2000 equatorial + visual magnitude).
-- `SolarSystemBodies.ts` — display metadata (color, disc size clamps) from
-  Stellarium `planets.ini`.
+  (J2000 equatorial + visual magnitude + topocentric distance + Moon phase;
+  angular-diameter helpers).
+- `SolarSystemBodies.ts` — display metadata (color, exaggerated disc clamps,
+  physical radius) from Stellarium `planets.ini`.
 
 Projection uses `equatorialToHorizontal` from `src/common/sky/SkyCoordinates.ts`
-for stars, constellations, and planets.
+for stars, constellations, and planets. Sun/Moon discs are sized from apparent
+angular diameter vs FOV; planets stay exaggerated unless `trueScaleBodiesProperty`
+is on.

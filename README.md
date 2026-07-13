@@ -13,9 +13,9 @@ Vite 8, TypeScript 7, and Biome 2.
 - Location presets and longitude control (Boulder, Greenwich, poles, equator, Sydney)
 - Date/time presets for solstices and equinoxes
 - Bright-star catalog (~4100 stars, mag ≤ 5.8) with magnitude limit and name labels
-- Classroom constellation stick figures and names (Ursa Major, Orion, Cassiopeia, Southern Cross)
+- Full IAU constellation stick figures and names (all 88)
 - Cardinals, zenith, meridian, and optional equatorial RA/Dec grid overlays
-- Sun, Moon, and Mercury–Neptune via `astronomy-engine` ephemerides
+- Sun, Moon, and Mercury–Neptune via `astronomy-engine` ephemerides (angularly correct Sun/Moon discs; optional true-scale planets)
 - Observer latitude/longitude, civil UTC time, and derived local sidereal time with play / pause / speed
 - English, Spanish, and French localization via `StringManager`
 - Deep-link startup via query params (`lat`, `lon`, `date`, `fov`, `magLimit`)

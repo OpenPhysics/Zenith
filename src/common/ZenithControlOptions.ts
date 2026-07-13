@@ -4,6 +4,7 @@
  * Shared sizing and layout for panel controls (sliders, checkboxes, NumberControls).
  */
 
+import { HBox, type Node } from "scenerystack/scenery";
 import { NumberControl } from "scenerystack/scenery-phet";
 import type { CheckboxOptions } from "scenerystack/sun";
 import { CHECKBOX_BOX_WIDTH, NUMBER_CONTROL_SLIDER_TRACK_SIZE, SLIDER_THUMB_SIZE } from "../SimConstants.js";
@@ -22,6 +23,41 @@ export const ZENITH_NUMBER_CONTROL_OPTIONS = {
     trackSize: NUMBER_CONTROL_SLIDER_TRACK_SIZE,
     thumbSize: SLIDER_THUMB_SIZE,
     trackFillEnabled: ZenithColors.textColorProperty,
+  },
+};
+
+/**
+ * Compact NumberControl layout for civil year/month/day/hour: title + arrows +
+ * readout only (slider is not placed, so the control stays short).
+ */
+export const ZENITH_COMPACT_SPINNER_NUMBER_CONTROL_OPTIONS = {
+  arrowButtonOptions: { ...FLAT_RECTANGULAR_BUTTON_OPTIONS, scale: 0.65 },
+  layoutFunction: (
+    titleNode: Node,
+    numberDisplay: Node,
+    _slider: Node,
+    decrementButton: Node | null,
+    incrementButton: Node | null,
+  ): Node => {
+    const children: Node[] = [titleNode];
+    if (decrementButton) {
+      children.push(decrementButton);
+    }
+    children.push(numberDisplay);
+    if (incrementButton) {
+      children.push(incrementButton);
+    }
+    return new HBox({
+      spacing: 3,
+      align: "center",
+      children,
+    });
+  },
+  sliderOptions: {
+    trackSize: NUMBER_CONTROL_SLIDER_TRACK_SIZE,
+    thumbSize: SLIDER_THUMB_SIZE,
+    visible: false,
+    pickable: false,
   },
 };
 

@@ -9,7 +9,17 @@
  * local sidereal time derived from {@link localSiderealTimeHours}.
  */
 
-import { Body, Equator, Illumination, MakeTime, Observer, SiderealTime } from "astronomy-engine";
+import {
+  Body,
+  Equator,
+  Illumination,
+  KM_PER_AU,
+  MakeTime,
+  MoonPhase,
+  Observer,
+  RAD2DEG,
+  SiderealTime,
+} from "astronomy-engine";
 import { normalizeHours } from "./SkyCoordinates.js";
 
 /** Solar-system bodies shown in the Zenith planetarium (v1). */
@@ -44,6 +54,19 @@ export type PlanetEquatorialState = {
   decDeg: number;
   /** Visual magnitude (Illumination); Sun/Moon use typical bright values. */
   mag: number;
+  /** Topocentric distance in AU (from astronomy-engine Equator). */
+  distAu: number;
+};
+
+/**
+ * Lunar phase for disc rendering.
+ * `phaseFraction` is 0 at new Moon and 1 at full; `waxing` is true from new → full.
+ */
+export type MoonPhaseState = {
+  phaseFraction: number;
+  waxing: boolean;
+  /** Illumination phase angle in degrees (0 = full, 180 = new). */
+  phaseAngleDeg: number;
 };
 
 /**
@@ -84,6 +107,51 @@ export const planetEquatorialState = (
     raHours: eq.ra,
     decDeg: eq.dec,
     mag,
+    distAu: eq.dist,
+  };
+};
+
+/**
+ * Apparent angular diameter in degrees for a sphere of radius `radiusKm` at
+ * topocentric distance `distAu`.
+ *
+ * θ = 2 atan(R / d)
+ */
+export const apparentAngularDiameterDeg = (radiusKm: number, distAu: number): number => {
+  if (!(distAu > 0 && radiusKm > 0)) {
+    return 0;
+  }
+  return 2 * Math.atan(radiusKm / (distAu * KM_PER_AU)) * RAD2DEG;
+};
+
+/**
+ * Convert an angular diameter (degrees) to a screen disc radius (pixels) given
+ * degrees-per-pixel of the FOV projection.
+ */
+export const angularDiameterToRadiusPx = (
+  angularDiameterDeg: number,
+  degreesPerPixel: number,
+  minRadiusPx: number,
+): number => {
+  if (!(degreesPerPixel > 0 && angularDiameterDeg > 0)) {
+    return minRadiusPx;
+  }
+  return Math.max(minRadiusPx, angularDiameterDeg / (2 * degreesPerPixel));
+};
+
+/**
+ * Illuminated fraction and waxing/waning sense for Moon disc shading.
+ * Uses astronomy-engine Illumination + MoonPhase (ecliptic elongation).
+ */
+export const moonPhaseState = (civilTimeMs: number): MoonPhaseState => {
+  const time = MakeTime(new Date(civilTimeMs));
+  const illumination = Illumination(Body.Moon, time);
+  const elongationDeg = MoonPhase(time);
+  return {
+    phaseFraction: illumination.phase_fraction,
+    phaseAngleDeg: illumination.phase_angle,
+    // MoonPhase: 0 = new, 90 = first quarter, 180 = full, 270 = third quarter.
+    waxing: elongationDeg < 180,
   };
 };
 
