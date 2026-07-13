@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { SkyProjection } from "../src/zenith-screen/view/SkyProjection.js";
 
 const square = new Bounds2(0, 0, 800, 800);
-const make = (lookAltitudeDeg = 25, lookAzimuthDeg = 180) =>
+const make = (lookAltitudeDeg = 25, lookAzimuthDeg = 180): SkyProjection =>
   new SkyProjection({ bounds: square, lookAzimuthDeg, lookAltitudeDeg, fieldOfViewDeg: 90 });
 
 describe("SkyProjection", () => {
