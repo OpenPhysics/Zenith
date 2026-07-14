@@ -171,13 +171,15 @@ export const attachPlanetariumInteraction = <T extends Node>(
       drag: (event) => {
         const p = event.pointer.point;
         const dx = p.x - lastX;
-        const dy = lastY - p.y;
+        const dy = p.y - lastY;
         totalMove = Math.hypot(p.x - startX, p.y - startY);
         if (dragMode === "time") {
           model.advanceSiderealTime(-dx * TIME_DRAG_HOURS_PER_PIXEL);
         } else {
-          // Drag right → look toward higher azimuth; drag up → look higher.
-          panBy(dx * LOOK_PAN_DEG_PER_PIXEL, dy * LOOK_PAN_DEG_PER_PIXEL);
+          // Grab-and-drag the sky: content follows the pointer. Dragging right
+          // moves the sky right, revealing lower azimuth at the center;
+          // dragging down moves it down, revealing higher altitude.
+          panBy(-dx * LOOK_PAN_DEG_PER_PIXEL, dy * LOOK_PAN_DEG_PER_PIXEL);
         }
         lastX = p.x;
         lastY = p.y;
