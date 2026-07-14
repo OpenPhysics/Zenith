@@ -4,9 +4,9 @@
  * Covers observer defaults, look/FOV state, civil-time advance, and LST sync.
  */
 
-import { TimeSpeed } from "scenerystack/scenery-phet";
 import { beforeEach, describe, expect, it } from "vitest";
 import { localSiderealTimeHours } from "../src/common/sky/PlanetEphemeris.js";
+import { equatorialToHorizontal } from "../src/common/sky/SkyCoordinates.js";
 import { ZenithPreferencesModel } from "../src/preferences/ZenithPreferencesModel.js";
 import {
   CIVIL_HOURS_PER_SIM_SECOND,
@@ -16,6 +16,9 @@ import {
   DEFAULT_LONGITUDE_DEG,
   DEFAULT_LOOK_ALTITUDE_DEG,
   DEFAULT_LOOK_AZIMUTH_DEG,
+  FIELD_OF_VIEW_RANGE,
+  FOV_KEYBOARD_STEP_DEG,
+  LOOK_ALTITUDE_RANGE,
 } from "../src/SimConstants.js";
 import { EPOCH_PRESET_CIVIL_MS, EpochPreset } from "../src/zenith-screen/model/EpochPreset.js";
 import { LocationPreset } from "../src/zenith-screen/model/LocationPreset.js";
@@ -45,7 +48,7 @@ describe("ZenithModel", () => {
     expect(model.trueScaleBodiesProperty.value).toBe(false);
     expect(model.showAtmosphereProperty.value).toBe(true);
     expect(model.timer.isPlayingProperty.value).toBe(true);
-    expect(model.timeSpeedProperty.value).toBe(TimeSpeed.NORMAL);
+    expect(model.timeRateProperty.value).toBe(1);
   });
 
   it("advances civil time while playing at NORMAL speed and keeps LST in sync", () => {
@@ -58,11 +61,55 @@ describe("ZenithModel", () => {
     );
   });
 
-  it("scales civil advance by TimeSpeed.FAST", () => {
-    model.timeSpeedProperty.value = TimeSpeed.FAST;
+  it("scales civil advance when the time rate is increased", () => {
+    model.increaseTimeRate();
+    const rate = model.timeRateProperty.value;
+    expect(rate).toBeGreaterThan(1);
     model.step(1);
-    const expectedCivil = DEFAULT_CIVIL_TIME_MS + 4 * CIVIL_HOURS_PER_SIM_SECOND * 3600 * 1000;
+    const expectedCivil = DEFAULT_CIVIL_TIME_MS + rate * CIVIL_HOURS_PER_SIM_SECOND * 3600 * 1000;
     expect(model.civilTimeMsProperty.value).toBe(expectedCivil);
+  });
+
+  it("runs civil time backward once the rate is decreased past 1×", () => {
+    // From the default 1× forward, one decrease crosses zero straight into reverse.
+    model.decreaseTimeRate();
+    expect(model.timeRateProperty.value).toBeLessThan(0);
+    model.step(1);
+    expect(model.civilTimeMsProperty.value).toBeLessThan(DEFAULT_CIVIL_TIME_MS);
+  });
+
+  it("resetTimeRate restores the normal forward rate from anywhere on the ladder", () => {
+    model.decreaseTimeRate();
+    model.decreaseTimeRate();
+    expect(model.timeRateProperty.value).not.toBe(1);
+    model.resetTimeRate();
+    expect(model.timeRateProperty.value).toBe(1);
+  });
+
+  it("lookToward spins azimuth (wrapped) and range-constrains altitude", () => {
+    // With the horizon shown (default) the view cannot drop below the horizon.
+    model.lookToward(-45, 200);
+    expect(model.lookAzimuthDegProperty.value).toBeCloseTo(315, 10);
+    expect(model.lookAltitudeDegProperty.value).toBe(LOOK_ALTITUDE_RANGE.max);
+    model.lookToward(720, -50);
+    expect(model.lookAzimuthDegProperty.value).toBeCloseTo(0, 10);
+    expect(model.lookAltitudeDegProperty.value).toBe(0);
+
+    // Hiding the horizon frees the view to look down to the nadir.
+    model.showHorizonProperty.value = false;
+    model.lookToward(0, -1000);
+    expect(model.lookAltitudeDegProperty.value).toBe(LOOK_ALTITUDE_RANGE.min);
+  });
+
+  it("zoomBy narrows and widens the field of view and clamps to the range", () => {
+    model.zoomBy(-FOV_KEYBOARD_STEP_DEG);
+    expect(model.fieldOfViewDegProperty.value).toBe(DEFAULT_FIELD_OF_VIEW_DEG - FOV_KEYBOARD_STEP_DEG);
+    // A large negative delta cannot jump below the FOV floor.
+    model.zoomBy(-1e6);
+    expect(model.fieldOfViewDegProperty.value).toBe(FIELD_OF_VIEW_RANGE.min);
+    // A large positive delta cannot jump above the FOV ceiling.
+    model.zoomBy(1e6);
+    expect(model.fieldOfViewDegProperty.value).toBe(FIELD_OF_VIEW_RANGE.max);
   });
 
   it("does not advance when paused", () => {
@@ -152,6 +199,47 @@ describe("ZenithModel", () => {
     expect(model.magnitudeLimitProperty.value).toBe(5.5);
     expect(model.selectedObjectProperty.value).toBeNull();
     expect(model.timer.timeProperty.value).toBe(0);
+  });
+
+  it("tracking centers the look on the selected object and follows it as time advances", () => {
+    const vega = { kind: "star" as const, id: "vega", raHours: 18.6153, decDeg: 38.7837, mag: 0.03 };
+    // Hide the horizon so the look altitude is unclamped and matches exactly.
+    model.showHorizonProperty.value = false;
+    model.selectedObjectProperty.value = vega;
+    model.trackSelectedObjectProperty.value = true;
+
+    const lat = model.latitudeProperty.value;
+    const expected0 = equatorialToHorizontal(
+      vega.raHours,
+      vega.decDeg,
+      lat,
+      model.localSiderealTimeHoursProperty.value,
+    );
+    expect(model.lookAzimuthDegProperty.value).toBeCloseTo(expected0.azDeg, 6);
+    expect(model.lookAltitudeDegProperty.value).toBeCloseTo(expected0.altDeg, 6);
+
+    // Advancing time moves the star; the tracked look follows.
+    model.advanceSiderealTime(6);
+    const expected1 = equatorialToHorizontal(
+      vega.raHours,
+      vega.decDeg,
+      lat,
+      model.localSiderealTimeHoursProperty.value,
+    );
+    expect(model.lookAzimuthDegProperty.value).toBeCloseTo(expected1.azDeg, 6);
+    expect(model.lookAltitudeDegProperty.value).toBeCloseTo(expected1.altDeg, 6);
+    expect(model.trackSelectedObjectProperty.value).toBe(true);
+  });
+
+  it("a manual pan cancels tracking", () => {
+    model.showHorizonProperty.value = false;
+    model.selectedObjectProperty.value = { kind: "star", id: "vega", raHours: 18.6153, decDeg: 38.7837, mag: 0.03 };
+    model.trackSelectedObjectProperty.value = true;
+    expect(model.trackSelectedObjectProperty.value).toBe(true);
+
+    // A user look change (drag / arrow / quick-look mutates these Properties) stops tracking.
+    model.lookAzimuthDegProperty.value += 10;
+    expect(model.trackSelectedObjectProperty.value).toBe(false);
   });
 
   it("derives solar altitude above 50° at Boulder near local noon on the June solstice", () => {

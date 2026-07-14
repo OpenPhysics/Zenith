@@ -373,12 +373,12 @@ export class PlanetariumSkyNode extends Node {
 
     this.children = [
       this.skyFill,
+      this.constellationPath,
+      this.constellationLabelsLayer,
       this.groundFill,
       this.horizonLine,
       this.equatorialGridPath,
       this.equatorialLabelsLayer,
-      this.constellationPath,
-      this.constellationLabelsLayer,
       this.gridPath,
       this.horizontalLabelsLayer,
       this.meridianPath,
@@ -657,15 +657,19 @@ export class PlanetariumSkyNode extends Node {
   private altAzGridShape(): Shape {
     const shape = new Shape();
     const azSteps = Math.round(360 / HORIZON_SAMPLE_STEP_DEG);
-    const altSteps = Math.round(90 / MERIDIAN_ALT_STEP_DEG);
+    // With the horizon (ground) hidden the lower hemisphere is in view, so sweep
+    // the grid down below alt 0 as well to keep that region populated; otherwise
+    // the grid stops at the horizon where the ground takes over.
+    const altMin = this.model.showHorizonProperty.value ? 0 : -ALT_AZ_GRID_ALT_MAX_DEG;
+    const altSteps = Math.round((ALT_AZ_GRID_ALT_MAX_DEG - altMin) / MERIDIAN_ALT_STEP_DEG);
 
     // Altitude parallels: constant altitude, swept in azimuth.
-    for (let alt = 0; alt < ALT_AZ_GRID_ALT_MAX_DEG; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
+    for (let alt = altMin; alt < ALT_AZ_GRID_ALT_MAX_DEG; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
       this.appendSampledCurve(shape, azSteps, (i) => this.projectAltAz(alt, i * HORIZON_SAMPLE_STEP_DEG));
     }
-    // Azimuth meridians: constant azimuth, swept from horizon to zenith.
+    // Azimuth meridians: constant azimuth, swept across the visible hemisphere(s).
     for (let az = 0; az < 360; az += ALT_AZ_GRID_AZ_STEP_DEG) {
-      this.appendSampledCurve(shape, altSteps, (i) => this.projectAltAz(i * MERIDIAN_ALT_STEP_DEG, az));
+      this.appendSampledCurve(shape, altSteps, (i) => this.projectAltAz(altMin + i * MERIDIAN_ALT_STEP_DEG, az));
     }
     return shape;
   }
@@ -717,10 +721,13 @@ export class PlanetariumSkyNode extends Node {
 
   private meridianShape(): Shape {
     const shape = new Shape();
+    // When the horizon is hidden the meridian continues into the lower hemisphere
+    // (down to the nadir); otherwise it just dips slightly below the horizon line.
+    const altMin = this.model.showHorizonProperty.value ? -10 : -90;
     // Local meridian: north (0°) and south (180°) altitude arcs.
     for (const az of [0, 180]) {
       let started = false;
-      for (let alt = -10; alt <= 90; alt += MERIDIAN_ALT_STEP_DEG) {
+      for (let alt = altMin; alt <= 90; alt += MERIDIAN_ALT_STEP_DEG) {
         const point = this.projectAltAz(alt, az);
         if (!point) {
           started = false;
@@ -922,8 +929,12 @@ export class PlanetariumSkyNode extends Node {
     const shape = new Shape();
     const lat = this.model.latitudeProperty.value;
     const lst = this.model.localSiderealTimeHoursProperty.value;
-    const hideBelowHorizon = this.model.showHorizonProperty.value;
 
+    // Constellation stick figures are drawn as straight chords between their
+    // anchor stars regardless of altitude: a figure dipping below the horizon
+    // stays complete, and the ground overlay (when shown) occludes the portion
+    // beneath the horizon. Only the projection's own viewport/antipode cull
+    // drops a segment, so off-view segments simply don't render.
     for (const figure of CONSTELLATION_FIGURES) {
       for (const segment of figure.segments) {
         const from = constellationStarById(segment.fromId);
@@ -933,9 +944,6 @@ export class PlanetariumSkyNode extends Node {
         }
         const fromH = equatorialToHorizontal(from.raHours, from.decDeg, lat, lst);
         const toH = equatorialToHorizontal(to.raHours, to.decDeg, lat, lst);
-        if (hideBelowHorizon && (fromH.altDeg < 0 || toH.altDeg < 0)) {
-          continue;
-        }
         const p0 = this.projectAltAz(fromH.altDeg, fromH.azDeg);
         const p1 = this.projectAltAz(toH.altDeg, toH.azDeg);
         if (!(p0 && p1)) {

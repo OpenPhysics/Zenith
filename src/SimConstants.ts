@@ -79,9 +79,11 @@ export const DEFAULT_LOCAL_SIDEREAL_TIME_HOURS = 0;
 
 /**
  * Hours of civil (and roughly sidereal) time advanced per second of simulation
- * clock at NORMAL speed. Educational rate so diurnal motion is visible.
+ * clock at the base `1×` rate. Real-time: one wall-clock second advances civil
+ * time by one second (1/3600 h). The {@link TIME_RATE_MULTIPLIERS} ladder scales
+ * this up so diurnal motion becomes visible at higher rates.
  */
-export const CIVIL_HOURS_PER_SIM_SECOND = 0.05;
+export const CIVIL_HOURS_PER_SIM_SECOND = 1 / 3600;
 
 /**
  * @deprecated Prefer CIVIL_HOURS_PER_SIM_SECOND — kept as alias for call sites
@@ -118,6 +120,22 @@ export const CIVIL_DAY_RANGE = new Range(1, 31);
 /** UTC hour-of-day range for the civil date jump UI. */
 export const CIVIL_HOUR_RANGE = new Range(0, 23);
 
+/**
+ * Discrete time-rate ladder: each value multiplies the base educational rate
+ * {@link CIVIL_HOURS_PER_SIM_SECOND}. Symmetric with no zero, so stepping the
+ * rate down past `1×` crosses straight into reverse (`−1×`) and then rewinds
+ * faster and faster; stepping up walks it back toward, and past, forward play.
+ */
+export const TIME_RATE_MULTIPLIERS: readonly number[] = [
+  -30000, -10000, -3000, -1000, -300, -100, -30, -10, -3, -1, 1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000,
+];
+
+/** Index into {@link TIME_RATE_MULTIPLIERS} for the default rate (`1×`, normal forward). */
+export const DEFAULT_TIME_RATE_INDEX = TIME_RATE_MULTIPLIERS.indexOf(1);
+
+/** Valid index range for the time-rate ladder. */
+export const TIME_RATE_INDEX_RANGE = new Range(0, TIME_RATE_MULTIPLIERS.length - 1);
+
 // ── Aim-able first-person sky camera (stereographic projection) ───────────────
 
 /** Default look azimuth (degrees from North through East). Due south. */
@@ -129,8 +147,8 @@ export const DEFAULT_LOOK_AZIMUTH_DEG = 180;
  */
 export const DEFAULT_LOOK_ALTITUDE_DEG = 40;
 
-/** Allowed look-altitude range (degrees): horizon-centered up to zenith-centered. */
-export const LOOK_ALTITUDE_RANGE = new Range(0, 90);
+/** Allowed look-altitude range (degrees): nadir-centered (looking straight down) up to zenith-centered. */
+export const LOOK_ALTITUDE_RANGE = new Range(-90, 90);
 
 /** Default horizontal field of view (degrees) — a wide fisheye. */
 export const DEFAULT_FIELD_OF_VIEW_DEG = 140;
@@ -176,6 +194,18 @@ export const TIME_DRAG_HOURS_PER_PIXEL = 0.02;
 
 /** Sidereal hours advanced per Ctrl+arrow press. */
 export const TIME_KEYBOARD_STEP_HOURS = 0.25;
+
+/** Field-of-view change (degrees) per keyboard zoom keypress. */
+export const FOV_KEYBOARD_STEP_DEG = 5;
+
+/** Quick-look cardinal azimuths (degrees from North through East). */
+export const LOOK_NORTH_AZIMUTH_DEG = 0;
+export const LOOK_EAST_AZIMUTH_DEG = 90;
+export const LOOK_SOUTH_AZIMUTH_DEG = 180;
+export const LOOK_WEST_AZIMUTH_DEG = 270;
+
+/** Quick-look altitude (degrees) aimed at the zenith. */
+export const LOOK_ZENITH_ALTITUDE_DEG = 90;
 
 /** Brightest star screen radius (px). */
 export const STAR_RADIUS_MAX = 4.5;

@@ -38,3 +38,15 @@ export const civilPartsToTimeMs = (parts: CivilDateTimeParts): number => {
   const day = Math.min(parts.day, daysInUtcMonth(parts.year, parts.month));
   return Date.UTC(parts.year, parts.month - 1, day, parts.hour, 0, 0);
 };
+
+/**
+ * Local mean solar time (HH:MM) at the observer's longitude: civil UTC shifted
+ * by longitude/15 hours — the clock the Sun keeps, so it explains why the sky
+ * does not match the UTC readout.
+ */
+export const formatLocalSolarTime = (civilTimeMs: number, longitudeDeg: number): string => {
+  const solar = new Date(civilTimeMs + (longitudeDeg / 15) * 3600 * 1000);
+  const hh = String(solar.getUTCHours()).padStart(2, "0");
+  const mm = String(solar.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+};

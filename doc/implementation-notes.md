@@ -25,7 +25,9 @@ main.ts
             ├─ PlanetariumPlanetsNode
             ├─ SelectedObjectReadout
             ├─ attachPlanetariumInteraction
-            ├─ SimPanel controls
+            ├─ TimeControlPanel            (preset combo, date spinners, Now, sidereal jumps, rate ladder controls)
+            ├─ ObserverLocationNode        (interactive map and lat/lon controls)
+            ├─ Display panel controls      (FOV, magnitude limit, and grid/line/cardinal/atmosphere checkboxes)
             ├─ ZenithScreenSummaryContent
             └─ ZenithKeyboardHelpContent
 
@@ -40,6 +42,8 @@ src/zenith-screen/model/LocationPreset.ts
 src/zenith-screen/model/EpochPreset.ts
 src/zenith-screen/model/SolarSystemBodies.ts
 src/zenith-screen/view/SkyProjection.ts
+src/zenith-screen/view/TimeControlPanel.ts
+src/zenith-screen/view/ObserverLocationNode.ts
 reference/stellarium-web-engine/   (gitignored local reference)
 ```
 
@@ -55,7 +59,8 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 |---|---|---|
 | `timer.isPlayingProperty` | — | Play/pause for sky motion (`TimeModel`) |
 | `timer.timeProperty` | s | Elapsed simulation time |
-| `timeSpeedProperty` | TimeSpeed | SLOW / NORMAL / FAST multiplier |
+| `timeRateIndexProperty` | Integer | Index into the discrete signed playback rate ladder |
+| `timeRateProperty` | derived multiplier | Signed playback rate multiplier (can be negative for reverse time) |
 | `locationPresetProperty` | LocationPreset | Named sites; `CUSTOM` when lat/lon scrubbed |
 | `epochPresetProperty` | EpochPreset | Solstice/equinox jumps; `CUSTOM` when time advances |
 | `latitudeProperty` | degrees (+N) | Observer latitude |
@@ -63,7 +68,7 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 | `civilTimeMsProperty` | ms (UTC epoch) | Advances while playing; drives ephemerides |
 | `localSiderealTimeHoursProperty` | hours `[0, 24)` | Synced from GAST + longitude |
 | `lookAzimuthDegProperty` | degrees (N→E) | FOV center azimuth |
-| `lookAltitudeDegProperty` | degrees | FOV center altitude |
+| `lookAltitudeDegProperty` | degrees | FOV center altitude `[-90, 90]` (clamped to `[0, 90]` when horizon is shown) |
 | `fieldOfViewDegProperty` | degrees | Horizontal FOV |
 | `showGridProperty` | — | Alt/az grid + tick labels |
 | `showCardinalsProperty` | — | N/S/E/W labels + zenith marker |
@@ -82,6 +87,7 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 | `showObjectPathProperty` | — | Whether the selected object's 24 h diurnal path is drawn |
 | `magnitudeLimitProperty` | mag | Cull fainter catalog stars |
 | `selectedObjectProperty` | SelectedSkyObject \| null | Click/keyboard-selected star or planet |
+| `trackSelectedObjectProperty` | — | When true, camera tracks/centers on the selected object |
 | `measureStartProperty` | EquatorialCoordinates \| null | First endpoint of angular measurement tool |
 | `measureEndProperty` | EquatorialCoordinates \| null | Second endpoint of angular measurement tool |
 | `measureSeparationDegProperty` | degrees \| null | Derived angular separation between endpoints |
@@ -96,13 +102,12 @@ in `src/SimConstants.ts`. Named location / epoch tables:
 ### Step / reset
 
 - `step(dt)` advances `TimeModel` and civil time by
-  `dt × CIVIL_HOURS_PER_SIM_SECOND × speed`, then resyncs LST.
-- `advanceCivilTimeHours` / `advanceSiderealTime` / `stepForward` support
-  Ctrl-drag and the step button (civil scrub).
-- `reset()` restores every Property and the timer (including presets and
-  selection). Overlay preferences that live in Preferences
-  (`showStarLabels`, `showConstellations`, `showPlanetLabels`) are **not**
-  cleared by Reset All.
+  `dt × CIVIL_HOURS_PER_SIM_SECOND × timeRate`, then resyncs LST.
+- `advanceCivilTimeHours` / `advanceSiderealTime` support Ctrl-drag and hotkeys.
+- `reset()` restores every Property and the timer (including presets, rate index,
+  and selection). Preference-backed overlays that live in Preferences
+  (`showStarLabels`, `showConstellations`, `showPlanetLabels`, `deepStarCatalog`)
+  are **not** cleared by Reset All.
 
 ---
 
@@ -163,12 +168,15 @@ Wired in `attachPlanetariumInteraction` and control-panel listeners:
 | Shift-click | Measure angular distance between two points |
 | Click (small motion) | Select nearest named star or planet |
 | N / P | Cycle selectable objects in the FOV |
-| Escape | Clear selection / measurement |
-| Scroll wheel | Change FOV |
-| TimeControlNode | Play/pause/step + SLOW/NORMAL/FAST |
-| Location / epoch ComboBoxes | Jump observer site or civil epoch |
+| T | Toggle tracking of selected object |
+| + / − (or scroll wheel) | Change FOV |
+| J / K / L | Adjust time rate (slower/reverse · play/pause · faster/forward) |
+| Shift + N/S/E/W/Z | Quick-look North, South, East, West, or Zenith |
+| A / G / Q / Z / E / M | Toggle Atmosphere, Horizon, Cardinals, Grid, Equatorial grid, Meridian |
+| Location ComboBox | Jump observer site |
+| Epoch ComboBox | Jump civil epoch |
 | Year / month / day / hour NumberControls | Arbitrary UTC civil jump → epoch `CUSTOM` |
-| Checkboxes | Alt/az grid, cardinals, meridian, RA/Dec grid, horizon, planets, atmosphere, true-scale discs, ecliptic, celestial equator, selected object path |
+| Checkboxes | Alt/az grid, cardinals, meridian, RA/Dec grid, horizon, planets, atmosphere, true-scale discs, ecliptic, celestial equator, selected object path, track selected object |
 | Preferences → Simulation | Star names, constellation lines, planet names, deeper star catalog (also seedable via query params) |
 
 Keyboard Shortcuts (`?`) come from `ZenithKeyboardHelpContent` / `ZenithHotkeyData`.

@@ -10,12 +10,12 @@ import {
   BooleanProperty,
   DerivedProperty,
   EnumerationProperty,
+  Multilink,
   NumberProperty,
   Property,
   type TReadOnlyProperty,
 } from "scenerystack/axon";
 import type { TModel } from "scenerystack/joist";
-import { TimeSpeed } from "scenerystack/scenery-phet";
 import {
   allPlanetEquatorialStates,
   localSiderealTimeHours,
@@ -47,6 +47,7 @@ import {
   DEFAULT_SHOW_MERIDIAN,
   DEFAULT_SHOW_OBJECT_PATH,
   DEFAULT_SHOW_PLANETS,
+  DEFAULT_TIME_RATE_INDEX,
   DEFAULT_TRUE_SCALE_BODIES,
   FIELD_OF_VIEW_RANGE,
   LATITUDE_RANGE,
@@ -54,16 +55,12 @@ import {
   LOOK_ALTITUDE_RANGE,
   MAGNITUDE_LIMIT_RANGE,
   SIDEREAL_HOURS_PER_SOLAR_HOUR,
+  TIME_RATE_INDEX_RANGE,
+  TIME_RATE_MULTIPLIERS,
 } from "../../SimConstants.js";
 import { DEFAULT_EPOCH_PRESET, EPOCH_PRESET_CIVIL_MS, EpochPreset } from "./EpochPreset.js";
 import { DEFAULT_LOCATION_PRESET, LOCATION_PRESET_COORDS, LocationPreset } from "./LocationPreset.js";
 import type { SelectedSkyObject } from "./SelectedSkyObject.js";
-
-const SPEED_MULTIPLIERS = new Map<TimeSpeed, number>([
-  [TimeSpeed.SLOW, 0.25],
-  [TimeSpeed.NORMAL, 1],
-  [TimeSpeed.FAST, 4],
-]);
 
 const MS_PER_HOUR = 3600 * 1000;
 
@@ -82,8 +79,21 @@ export class ZenithModel implements TModel {
   /** Play/pause + elapsed simulation time for sky animation. Starts playing. */
   public readonly timer = new TimeModel(true);
 
-  /** Discrete animation speed for TimeControlNode (SLOW / NORMAL / FAST). */
-  public readonly timeSpeedProperty = new EnumerationProperty(TimeSpeed.NORMAL);
+  /**
+   * Index into {@link TIME_RATE_MULTIPLIERS}. Stepping this down/up walks the
+   * playback rate from fast-forward through normal, across zero into reverse,
+   * and on to fast-rewind. Drives {@link timeRateProperty}.
+   */
+  public readonly timeRateIndexProperty = new NumberProperty(DEFAULT_TIME_RATE_INDEX, {
+    range: TIME_RATE_INDEX_RANGE,
+    numberType: "Integer",
+  });
+
+  /**
+   * Signed playback rate: a multiplier on the base educational time step. `1×`
+   * is normal forward play; negative values run the clock backward.
+   */
+  public readonly timeRateProperty: TReadOnlyProperty<number>;
 
   /** Named location preset; CUSTOM when lat/lon are set manually. */
   public readonly locationPresetProperty: EnumerationProperty<LocationPreset>;
@@ -189,6 +199,13 @@ export class ZenithModel implements TModel {
   public readonly selectedObjectProperty: Property<SelectedSkyObject | null>;
 
   /**
+   * When true, the first-person camera stays centered on the selected object as
+   * time advances — so a learner watches a star arc across the sky or a planet
+   * drift against the background. A manual pan cancels it (see the look links).
+   */
+  public readonly trackSelectedObjectProperty = new BooleanProperty(false);
+
+  /**
    * Angular-distance tool endpoints as fixed equatorial coordinates (so they
    * track the stars as the sky rotates). Null until the learner places them.
    */
@@ -213,6 +230,12 @@ export class ZenithModel implements TModel {
 
   /** Suppresses CUSTOM marking while applying a named location/epoch preset. */
   private applyingPreset = false;
+
+  /**
+   * True while the object tracker is writing the look direction, so those writes
+   * don't count as a manual pan and cancel tracking.
+   */
+  private trackingLook = false;
 
   public constructor(preferences: ZenithPreferencesModel) {
     // Startup values from public query parameters (teacher deep-links).
@@ -252,6 +275,15 @@ export class ZenithModel implements TModel {
     this.showCelestialEquatorProperty = new BooleanProperty(DEFAULT_SHOW_CELESTIAL_EQUATOR);
     this.showObjectPathProperty = new BooleanProperty(DEFAULT_SHOW_OBJECT_PATH);
     this.showHorizonProperty = new BooleanProperty(true);
+    // Showing the horizon again re-clamps a below-horizon view back up to it.
+    // Guarded so this automatic re-clamp isn't mistaken for a manual pan.
+    this.showHorizonProperty.lazyLink((show) => {
+      if (show) {
+        this.trackingLook = true;
+        this.setLookAltitude(this.lookAltitudeDegProperty.value);
+        this.trackingLook = false;
+      }
+    });
     this.showAtmosphereProperty = new BooleanProperty(DEFAULT_SHOW_ATMOSPHERE);
     this.showPlanetsProperty = new BooleanProperty(DEFAULT_SHOW_PLANETS);
     this.trueScaleBodiesProperty = new BooleanProperty(DEFAULT_TRUE_SCALE_BODIES);
@@ -269,6 +301,11 @@ export class ZenithModel implements TModel {
     this.measureSeparationDegProperty = new DerivedProperty(
       [this.measureStartProperty, this.measureEndProperty],
       (a, b) => (a && b ? angularSeparationDeg(a.raHours, a.decDeg, b.raHours, b.decDeg) : null),
+    );
+
+    this.timeRateProperty = new DerivedProperty(
+      [this.timeRateIndexProperty],
+      (index) => TIME_RATE_MULTIPLIERS[index] ?? 1,
     );
 
     this.skySnapshotProperty = new DerivedProperty(
@@ -336,11 +373,96 @@ export class ZenithModel implements TModel {
         this.epochPresetProperty.value = EpochPreset.CUSTOM;
       }
     });
+
+    // Keep the look centered on the selected object while tracking. Fires on link
+    // so enabling Track re-centers immediately, then re-fires as time / location
+    // moves the object across the sky.
+    Multilink.multilink(
+      [
+        this.trackSelectedObjectProperty,
+        this.selectedObjectProperty,
+        this.skySnapshotProperty,
+        this.latitudeProperty,
+        this.localSiderealTimeHoursProperty,
+      ],
+      (tracking, selected, _snapshot, lat, lst) => {
+        if (!(tracking && selected)) {
+          return;
+        }
+        const eq = this.equatorialOfSelected(selected);
+        if (!eq) {
+          return;
+        }
+        const { altDeg, azDeg } = equatorialToHorizontal(eq.raHours, eq.decDeg, lat, lst);
+        this.trackingLook = true;
+        this.lookToward(azDeg, altDeg);
+        this.trackingLook = false;
+      },
+    );
+
+    // A manual pan (drag / arrow / quick-look) cancels tracking; the tracker's own
+    // writes are guarded by trackingLook so they don't cancel it.
+    const cancelTrackingOnManualLook = (): void => {
+      if (!this.trackingLook) {
+        this.trackSelectedObjectProperty.value = false;
+      }
+    };
+    this.lookAzimuthDegProperty.lazyLink(cancelTrackingOnManualLook);
+    this.lookAltitudeDegProperty.lazyLink(cancelTrackingOnManualLook);
   }
 
-  /** Combined multiplier from the discrete TimeSpeed radio. */
-  private get speedMultiplier(): number {
-    return SPEED_MULTIPLIERS.get(this.timeSpeedProperty.value) ?? 1;
+  /** Steps the playback rate one notch faster / toward forward (undoes a decrease). */
+  public increaseTimeRate(): void {
+    this.timeRateIndexProperty.value = Math.min(TIME_RATE_INDEX_RANGE.max, this.timeRateIndexProperty.value + 1);
+  }
+
+  /** Steps the playback rate one notch slower; past `1×` it crosses into reverse. */
+  public decreaseTimeRate(): void {
+    this.timeRateIndexProperty.value = Math.max(TIME_RATE_INDEX_RANGE.min, this.timeRateIndexProperty.value - 1);
+  }
+
+  /** Restores the playback rate to normal forward (`1×`). */
+  public resetTimeRate(): void {
+    this.timeRateIndexProperty.value = DEFAULT_TIME_RATE_INDEX;
+  }
+
+  /** Jumps civil time to the observer's real-world current instant ("Now"). */
+  public setToNow(): void {
+    this.civilTimeMsProperty.value = Date.now();
+  }
+
+  /**
+   * Lowest altitude the view center may drop to. With the horizon (ground)
+   * shown, looking below it reveals only opaque ground, so the downward look is
+   * clamped at the horizon; hiding the horizon frees the view to the nadir.
+   */
+  public get lookAltitudeMinDeg(): number {
+    return this.showHorizonProperty.value ? 0 : this.lookAltitudeDegProperty.range.min;
+  }
+
+  /** Sets the view-center altitude, constrained to the currently-allowed range. */
+  public setLookAltitude(altitudeDeg: number): void {
+    const range = this.lookAltitudeDegProperty.range;
+    this.lookAltitudeDegProperty.value = Math.min(range.max, Math.max(this.lookAltitudeMinDeg, altitudeDeg));
+  }
+
+  /**
+   * Points the first-person camera at an absolute azimuth / altitude (degrees).
+   * Azimuth is wrapped into [0, 360); altitude is range-constrained to the view.
+   */
+  public lookToward(azimuthDeg: number, altitudeDeg: number): void {
+    this.lookAzimuthDegProperty.value = ((azimuthDeg % 360) + 360) % 360;
+    this.setLookAltitude(altitudeDeg);
+  }
+
+  /**
+   * Zooms the field of view by `deltaDeg` (negative narrows the FOV = zoom in,
+   * positive widens = zoom out), clamped to the allowed FOV range.
+   */
+  public zoomBy(deltaDeg: number): void {
+    this.fieldOfViewDegProperty.value = this.fieldOfViewDegProperty.range.constrainValue(
+      this.fieldOfViewDegProperty.value + deltaDeg,
+    );
   }
 
   /** Recompute LST from civil time + longitude. */
@@ -384,11 +506,6 @@ export class ZenithModel implements TModel {
     return { raHours: state.raHours, decDeg: state.decDeg, mag: state.mag };
   }
 
-  /** One step-forward press for TimeControlNode. */
-  public stepForward(): void {
-    this.advanceCivilTimeHours(this.speedMultiplier * CIVIL_HOURS_PER_SIM_SECOND);
-  }
-
   public clearSelection(): void {
     this.selectedObjectProperty.value = null;
   }
@@ -413,7 +530,7 @@ export class ZenithModel implements TModel {
 
   public reset(): void {
     this.timer.reset();
-    this.timeSpeedProperty.reset();
+    this.timeRateIndexProperty.reset();
     this.applyingPreset = true;
     this.locationPresetProperty.reset();
     this.epochPresetProperty.reset();
@@ -440,6 +557,7 @@ export class ZenithModel implements TModel {
     // not reset — they outlive Reset All.
     this.magnitudeLimitProperty.reset();
     this.selectedObjectProperty.reset();
+    this.trackSelectedObjectProperty.reset();
     this.clearMeasurement();
   }
 
@@ -448,6 +566,6 @@ export class ZenithModel implements TModel {
     if (!this.timer.isPlayingProperty.value) {
       return;
     }
-    this.advanceCivilTimeHours(dt * CIVIL_HOURS_PER_SIM_SECOND * this.speedMultiplier);
+    this.advanceCivilTimeHours(dt * CIVIL_HOURS_PER_SIM_SECOND * this.timeRateProperty.value);
   }
 }

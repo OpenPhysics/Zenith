@@ -8,6 +8,13 @@
  *   - Shift-click                   → angular-distance measure points
  *   - N / P                         → cycle selectable objects in view
  *   - Escape                        → clear selection / measurement
+ *   - T                             → track selected object (camera follows)
+ *   - + / −                         → zoom field of view (wheel also works)
+ *   - Shift+N/S/E/W/Z               → quick-look North/South/East/West/Zenith
+ *   - J / K / L                     → slower / normal / faster time rate
+ *   - Shift++ / Shift+−             → advance / rewind one sidereal day
+ *   - A G Q Z E M                   → toggle atmosphere / horizon / cardinals /
+ *                                     alt-az grid / equatorial grid / meridian
  *   - wheel                         → change field of view
  */
 
@@ -19,8 +26,15 @@ import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
 import ZenithHotkeyData from "../../common/ZenithHotkeyData.js";
 import { StringManager } from "../../i18n/StringManager.js";
 import {
+  FOV_KEYBOARD_STEP_DEG,
+  HOURS_PER_SIDEREAL_DAY,
+  LOOK_EAST_AZIMUTH_DEG,
+  LOOK_NORTH_AZIMUTH_DEG,
   LOOK_PAN_DEG_PER_PIXEL,
   LOOK_PAN_KEYBOARD_STEP_DEG,
+  LOOK_SOUTH_AZIMUTH_DEG,
+  LOOK_WEST_AZIMUTH_DEG,
+  LOOK_ZENITH_ALTITUDE_DEG,
   TIME_DRAG_HOURS_PER_PIXEL,
   TIME_KEYBOARD_STEP_HOURS,
 } from "../../SimConstants.js";
@@ -149,9 +163,7 @@ export const attachPlanetariumInteraction = <T extends Node>(
 
   const panBy = (dAzDeg: number, dAltDeg: number): void => {
     model.lookAzimuthDegProperty.value = wrapLookAzimuth(model.lookAzimuthDegProperty.value + dAzDeg);
-    model.lookAltitudeDegProperty.value = model.lookAltitudeDegProperty.range.constrainValue(
-      model.lookAltitudeDegProperty.value + dAltDeg,
-    );
+    model.setLookAltitude(model.lookAltitudeDegProperty.value + dAltDeg);
   };
 
   const setSelection = (selected: SelectedSkyObject | null): void => {
@@ -255,6 +267,135 @@ export const attachPlanetariumInteraction = <T extends Node>(
           cycleSelection(model, skyNode, -1);
         }
         announceSelection(target, model, model.selectedObjectProperty.value);
+      },
+    }),
+  );
+
+  // Track toggle — keep the camera centered on the selected object as time passes.
+  target.addInputListener(
+    new KeyboardListener({
+      keyStringProperties: ZenithHotkeyData.TRACK_OBJECT.keyStringProperties,
+      fireOnHold: false,
+      fire: () => {
+        const a11y = StringManager.getInstance().getA11yStrings();
+        if (!model.selectedObjectProperty.value) {
+          target.addAccessibleResponse(a11y.trackingNoSelectionStringProperty);
+          return;
+        }
+        const tracking = !model.trackSelectedObjectProperty.value;
+        model.trackSelectedObjectProperty.value = tracking;
+        target.addAccessibleResponse(tracking ? a11y.trackingOnStringProperty : a11y.trackingOffStringProperty);
+      },
+    }),
+  );
+
+  // Zoom in / out — hold-repeatable, matching continuous wheel zoom.
+  target.addInputListener(
+    new KeyboardListener({
+      keyStringProperties: HotkeyData.combineKeyStringProperties([ZenithHotkeyData.ZOOM_IN, ZenithHotkeyData.ZOOM_OUT]),
+      fireOnHold: true,
+      fire: (_event, keysPressed) => {
+        // Zoom IN narrows the FOV (negative delta); zoom OUT widens it.
+        const sign = ZenithHotkeyData.ZOOM_IN.hasKeyStroke(keysPressed) ? -1 : 1;
+        model.zoomBy(sign * FOV_KEYBOARD_STEP_DEG);
+      },
+    }),
+  );
+
+  // Quick-look cardinal directions + zenith — single fire. Cardinal looks keep
+  // the current altitude and only spin the azimuth; zenith looks straight up.
+  target.addInputListener(
+    new KeyboardListener({
+      keyStringProperties: HotkeyData.combineKeyStringProperties([
+        ZenithHotkeyData.LOOK_NORTH,
+        ZenithHotkeyData.LOOK_SOUTH,
+        ZenithHotkeyData.LOOK_EAST,
+        ZenithHotkeyData.LOOK_WEST,
+        ZenithHotkeyData.LOOK_ZENITH,
+      ]),
+      fireOnHold: false,
+      fire: (_event, keysPressed) => {
+        const alt = model.lookAltitudeDegProperty.value;
+        if (ZenithHotkeyData.LOOK_NORTH.hasKeyStroke(keysPressed)) {
+          model.lookToward(LOOK_NORTH_AZIMUTH_DEG, alt);
+        } else if (ZenithHotkeyData.LOOK_SOUTH.hasKeyStroke(keysPressed)) {
+          model.lookToward(LOOK_SOUTH_AZIMUTH_DEG, alt);
+        } else if (ZenithHotkeyData.LOOK_EAST.hasKeyStroke(keysPressed)) {
+          model.lookToward(LOOK_EAST_AZIMUTH_DEG, alt);
+        } else if (ZenithHotkeyData.LOOK_WEST.hasKeyStroke(keysPressed)) {
+          model.lookToward(LOOK_WEST_AZIMUTH_DEG, alt);
+        } else if (ZenithHotkeyData.LOOK_ZENITH.hasKeyStroke(keysPressed)) {
+          model.lookToward(model.lookAzimuthDegProperty.value, LOOK_ZENITH_ALTITUDE_DEG);
+        }
+      },
+    }),
+  );
+
+  // Time-rate ladder (Stellarium-style J / K / L) — single fire per step.
+  target.addInputListener(
+    new KeyboardListener({
+      keyStringProperties: HotkeyData.combineKeyStringProperties([
+        ZenithHotkeyData.TIME_SLOWER,
+        ZenithHotkeyData.TIME_NORMAL,
+        ZenithHotkeyData.TIME_FASTER,
+      ]),
+      fireOnHold: false,
+      fire: (_event, keysPressed) => {
+        if (ZenithHotkeyData.TIME_SLOWER.hasKeyStroke(keysPressed)) {
+          model.decreaseTimeRate();
+        } else if (ZenithHotkeyData.TIME_FASTER.hasKeyStroke(keysPressed)) {
+          model.increaseTimeRate();
+        } else if (ZenithHotkeyData.TIME_NORMAL.hasKeyStroke(keysPressed)) {
+          model.resetTimeRate();
+        }
+      },
+    }),
+  );
+
+  // ±1 sidereal day — hold-repeatable so learners can sweep several days.
+  target.addInputListener(
+    new KeyboardListener({
+      keyStringProperties: HotkeyData.combineKeyStringProperties([
+        ZenithHotkeyData.TIME_DAY_FORWARD,
+        ZenithHotkeyData.TIME_DAY_BACKWARD,
+      ]),
+      fireOnHold: true,
+      fire: (_event, keysPressed) => {
+        const sign = ZenithHotkeyData.TIME_DAY_FORWARD.hasKeyStroke(keysPressed) ? 1 : -1;
+        model.advanceSiderealTime(sign * HOURS_PER_SIDEREAL_DAY);
+      },
+    }),
+  );
+
+  // Display-option toggles — single fire, mirroring the panel checkboxes.
+  const toggleBoolean = (property: { value: boolean }): void => {
+    property.value = !property.value;
+  };
+  target.addInputListener(
+    new KeyboardListener({
+      keyStringProperties: HotkeyData.combineKeyStringProperties([
+        ZenithHotkeyData.TOGGLE_ATMOSPHERE,
+        ZenithHotkeyData.TOGGLE_HORIZON,
+        ZenithHotkeyData.TOGGLE_CARDINALS,
+        ZenithHotkeyData.TOGGLE_GRID,
+        ZenithHotkeyData.TOGGLE_EQUATORIAL_GRID,
+        ZenithHotkeyData.TOGGLE_MERIDIAN,
+      ]),
+      fireOnHold: false,
+      fire: (_event, keysPressed) => {
+        if (ZenithHotkeyData.TOGGLE_ATMOSPHERE.hasKeyStroke(keysPressed)) {
+          toggleBoolean(model.showAtmosphereProperty);
+        } else if (ZenithHotkeyData.TOGGLE_HORIZON.hasKeyStroke(keysPressed)) {
+          toggleBoolean(model.showHorizonProperty);
+        } else if (ZenithHotkeyData.TOGGLE_CARDINALS.hasKeyStroke(keysPressed)) {
+          toggleBoolean(model.showCardinalsProperty);
+        } else if (ZenithHotkeyData.TOGGLE_GRID.hasKeyStroke(keysPressed)) {
+          toggleBoolean(model.showGridProperty);
+        } else if (ZenithHotkeyData.TOGGLE_EQUATORIAL_GRID.hasKeyStroke(keysPressed)) {
+          toggleBoolean(model.showEquatorialGridProperty);
+        } else if (ZenithHotkeyData.TOGGLE_MERIDIAN.hasKeyStroke(keysPressed)) {
+          toggleBoolean(model.showMeridianProperty);
+        }
       },
     }),
   );

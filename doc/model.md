@@ -50,10 +50,17 @@ The simulation clock advances **civil time** (calendar date and UTC clock).
 Local sidereal time is derived from that civil time and the observer’s
 longitude; it is what actually lines up the star catalog with the horizon.
 
-At normal speed, about **one hour of sky time passes per second of wall time**,
-so diurnal motion is easy to see. SLOW / NORMAL / FAST change that rate.
-Play, pause, step, Ctrl-drag on the sky, and date presets all move the same
-civil clock.
+The playback controls support play, pause, and adjusting the rate along a signed
+multi-step ladder (from fast-forward at $30000\times$, through normal play at
+$1\times$, across zero into reverse at $-1\times$, down to fast-rewind at
+$-30000\times$). At $1\times$, the simulation runs in real time (one second of
+wall time corresponds to one second of civil time).
+
+Learners can jump to the current real-world moment using the **Now** button,
+or step forward/backward by exactly one **sidereal day** ($\pm 1$), which returns
+the stars to the exact same position relative to the horizon while the Sun and planets
+drift slightly. Play, pause, Ctrl-drag on the sky, and date presets all update
+the same civil clock.
 
 Date/time presets target classroom epochs (≈ 18:00 UTC so day/night contrast
 works across many longitudes):
@@ -69,10 +76,11 @@ Year / month / day / hour controls jump to any UTC civil moment in range
 
 - **Azimuth** — compass direction of the view center (0° = north, 90° = east,
   180° = south, …)
-- **Altitude** — angle above the horizon (0° on the horizon, 90° at the zenith)
-- **Field of view** — horizontal width of the sky panel (about 40°–120°)
+- **Altitude** — angle of the view center (clamped at 0° on the horizon if the
+  ground is visible; otherwise ranging from −90° nadir to 90° zenith)
+- **Field of view** — horizontal width of the sky panel (about 50°–180°)
 
-Drag or arrow keys pan; the scroll wheel or FOV slider zooms. Default look is
+Drag or arrow keys pan; the scroll wheel, `+`/`−` keys, or FOV slider zooms. Default look is
 south at a modest altitude — a natural outdoor “looking up” pose.
 
 ### Coordinate systems (overlays)
@@ -100,6 +108,9 @@ Sun is highest.
 
 - **Hover** over any star or planet to see its name without clicking.
 - **Click** to select it and read its details; **N / P** cycle through objects.
+- **Object tracking** — check **Track selected object** or press **T** to center the
+  view on the selected star or planet. The camera will automatically track the object
+  as time passes; manual panning will cancel tracking.
 - **Shift-click** two points (snapping to nearby objects) to measure the
   **angular distance** between them in degrees — a line and the angle appear on
   the sky. Escape clears it.
@@ -145,6 +156,8 @@ for daytime teaching demos (Stellarium-style).
    then turn on both grids so students see both frames at once.
 7. **Planet scale** — Toggle true-scale discs next to the Moon to discuss why
    planets look like points to the naked eye.
+8. **Sidereal vs. solar day** — Select a star near transit or rising. Advance time by exactly one sidereal day ($\pm 1$ button). Note that the star returns to the exact same position in the sky, but the Sun's position and the local solar time shift.
+9. **Tracking the stars** — Select a star or planet and check the **Track selected object** box (or press **T**). Start time at a fast rate. Notice how the camera follows the object as it moves across the sky, making the horizon spin or tilt while the object remains centered.
 
 ---
 

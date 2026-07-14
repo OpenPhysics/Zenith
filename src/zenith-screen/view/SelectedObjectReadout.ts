@@ -8,13 +8,18 @@
 import { DerivedProperty, Multilink, PatternStringProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
 import { Node, Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
+import { Checkbox } from "scenerystack/sun";
+import { formatLocalSolarTime } from "../../common/sky/civilDateTime.js";
 import type { PlanetBodyId } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal, riseSetInfo, solarHoursUntilLst } from "../../common/sky/SkyCoordinates.js";
+import { ZENITH_CHECKBOX_OPTIONS } from "../../common/ZenithControlOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
 import { CONTROL_FONT_SIZE, CONTROL_PANEL_WIDTH, SIDEREAL_HOURS_PER_SOLAR_HOUR } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
+
+const MS_PER_HOUR = 3600 * 1000;
 
 const formatHours = (hours: number): string => hours.toFixed(2);
 const formatDeg = (deg: number): string => deg.toFixed(1);
@@ -111,28 +116,39 @@ type Visibility = {
   kind: "none" | "risesSets" | "circumpolar" | "neverRises";
   riseInHours: number;
   riseAzDeg: number;
+  riseClock: string;
   setInHours: number;
   setAzDeg: number;
+  setClock: string;
   transitInHours: number;
   transitAltDeg: number;
+  transitClock: string;
 };
 
 const NO_VISIBILITY: Visibility = {
   kind: "none",
   riseInHours: 0,
   riseAzDeg: 0,
+  riseClock: "—",
   setInHours: 0,
   setAzDeg: 0,
+  setClock: "—",
   transitInHours: 0,
   transitAltDeg: 0,
+  transitClock: "—",
 };
 
-/** When each event next happens for the selected object, relative to the current LST. */
+/**
+ * When each event next happens for the selected object, relative to the current
+ * LST, plus the observer's local-solar clock time of that event.
+ */
 const buildVisibility = (
   model: ZenithModel,
   selected: SelectedSkyObject | null,
   lat: number,
   lst: number,
+  civilTimeMs: number,
+  longitudeDeg: number,
 ): Visibility => {
   if (!selected) {
     return NO_VISIBILITY;
@@ -141,22 +157,37 @@ const buildVisibility = (
   if (!eq) {
     return NO_VISIBILITY;
   }
+  // Local-solar clock time of an event `hoursUntil` solar hours from now.
+  const clockAt = (hoursUntil: number): string =>
+    formatLocalSolarTime(civilTimeMs + hoursUntil * MS_PER_HOUR, longitudeDeg);
+
   const info = riseSetInfo(eq.raHours, eq.decDeg, lat);
   const transitInHours = solarHoursUntilLst(lst, info.transitLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR);
   if (info.band === "neverRises") {
     return { ...NO_VISIBILITY, kind: "neverRises" };
   }
   if (info.band === "circumpolar" || info.riseLstHours === null || info.setLstHours === null) {
-    return { ...NO_VISIBILITY, kind: "circumpolar", transitInHours, transitAltDeg: info.transitAltitudeDeg };
+    return {
+      ...NO_VISIBILITY,
+      kind: "circumpolar",
+      transitInHours,
+      transitAltDeg: info.transitAltitudeDeg,
+      transitClock: clockAt(transitInHours),
+    };
   }
+  const riseInHours = solarHoursUntilLst(lst, info.riseLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR);
+  const setInHours = solarHoursUntilLst(lst, info.setLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR);
   return {
     kind: "risesSets",
-    riseInHours: solarHoursUntilLst(lst, info.riseLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR),
+    riseInHours,
     riseAzDeg: info.riseAzimuthDeg ?? 0,
-    setInHours: solarHoursUntilLst(lst, info.setLstHours, SIDEREAL_HOURS_PER_SOLAR_HOUR),
+    riseClock: clockAt(riseInHours),
+    setInHours,
     setAzDeg: info.setAzimuthDeg ?? 0,
+    setClock: clockAt(setInHours),
     transitInHours,
     transitAltDeg: info.transitAltitudeDeg,
+    transitClock: clockAt(transitInHours),
   };
 };
 
@@ -166,6 +197,7 @@ export class SelectedObjectReadout extends Node {
 
     const stringManager = StringManager.getInstance();
     const controls = stringManager.getControls();
+    const a11y = stringManager.getA11yStrings();
     const bodies = stringManager.getBodies();
     const stars = stringManager.getStars();
     const labelFont = new PhetFont(CONTROL_FONT_SIZE);
@@ -230,29 +262,43 @@ export class SelectedObjectReadout extends Node {
         model.skySnapshotProperty,
         model.latitudeProperty,
         model.localSiderealTimeHoursProperty,
+        model.civilTimeMsProperty,
+        model.longitudeProperty,
       ],
-      (selected, _snapshot, lat, lst) => buildVisibility(model, selected, lat, lst),
+      (selected, _snapshot, lat, lst, civilMs, lon) => buildVisibility(model, selected, lat, lst, civilMs, lon),
     );
 
     const riseTimeProperty = new DerivedProperty([visibilityProperty], (v) => formatDuration(v.riseInHours));
     const riseAzProperty = new DerivedProperty([visibilityProperty], (v) => formatDeg(v.riseAzDeg));
+    const riseClockProperty = new DerivedProperty([visibilityProperty], (v) => v.riseClock);
     const setTimeProperty = new DerivedProperty([visibilityProperty], (v) => formatDuration(v.setInHours));
     const setAzProperty = new DerivedProperty([visibilityProperty], (v) => formatDeg(v.setAzDeg));
+    const setClockProperty = new DerivedProperty([visibilityProperty], (v) => v.setClock);
     const transitTimeProperty = new DerivedProperty([visibilityProperty], (v) => formatDuration(v.transitInHours));
     const transitAltProperty = new DerivedProperty([visibilityProperty], (v) => formatDeg(v.transitAltDeg));
+    const transitClockProperty = new DerivedProperty([visibilityProperty], (v) => v.transitClock);
 
     const eventTextOptions = { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth };
     const riseText = new Text(
-      new PatternStringProperty(controls.selectedRiseStringProperty, { time: riseTimeProperty, az: riseAzProperty }),
+      new PatternStringProperty(controls.selectedRiseStringProperty, {
+        time: riseTimeProperty,
+        clock: riseClockProperty,
+        az: riseAzProperty,
+      }),
       eventTextOptions,
     );
     const setText = new Text(
-      new PatternStringProperty(controls.selectedSetStringProperty, { time: setTimeProperty, az: setAzProperty }),
+      new PatternStringProperty(controls.selectedSetStringProperty, {
+        time: setTimeProperty,
+        clock: setClockProperty,
+        az: setAzProperty,
+      }),
       eventTextOptions,
     );
     const transitText = new Text(
       new PatternStringProperty(controls.selectedTransitStringProperty, {
         time: transitTimeProperty,
+        clock: transitClockProperty,
         alt: transitAltProperty,
       }),
       eventTextOptions,
@@ -277,6 +323,21 @@ export class SelectedObjectReadout extends Node {
       hzText.visible = hasSelection;
     });
 
+    // ── Track toggle (enabled only when an object is selected) ────────────────
+    const trackCheckbox = new Checkbox(
+      model.trackSelectedObjectProperty,
+      new Text(controls.trackSelectedStringProperty, {
+        font: labelFont,
+        fill: ZenithColors.textColorProperty,
+        maxWidth,
+      }),
+      {
+        ...ZENITH_CHECKBOX_OPTIONS,
+        enabledProperty: new DerivedProperty([model.selectedObjectProperty], (s) => s !== null),
+        accessibleName: a11y.controls.trackSelectedStringProperty,
+      },
+    );
+
     this.addChild(
       new VBox({
         spacing: 2,
@@ -292,6 +353,7 @@ export class SelectedObjectReadout extends Node {
           setText,
           circumpolarText,
           neverRisesText,
+          trackCheckbox,
         ],
       }),
     );

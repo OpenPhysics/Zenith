@@ -5,20 +5,18 @@
  * (including past layoutBounds); observer / time / display controls overlay it.
  */
 
-import { BooleanProperty, DerivedProperty, PatternStringProperty } from "scenerystack/axon";
+import { BooleanProperty, PatternStringProperty } from "scenerystack/axon";
 import { GridBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
-import { NumberControl, PhetFont, ResetAllButton, TimeControlNode } from "scenerystack/scenery-phet";
+import { NumberControl, PhetFont, ResetAllButton } from "scenerystack/scenery-phet";
 import type { ScreenViewOptions } from "scenerystack/sim";
 import { ScreenView } from "scenerystack/sim";
 import { AccordionBox, Checkbox, ComboBox, RectangularPushButton } from "scenerystack/sun";
 import { resolveObserverLocation } from "../../common/resolveObserverLocation.js";
 import {
-  FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS,
   FLAT_RECTANGULAR_BUTTON_OPTIONS,
   FLAT_RESET_ALL_BUTTON_OPTIONS,
   LIGHT_SURFACE_TEXT_FILL,
   SIM_COMBO_BOX_OPTIONS,
-  TIME_CONTROL_SPEED_RADIO_OPTIONS,
 } from "../../common/SimButtonOptions.js";
 import { SimPanel } from "../../common/SimPanel.js";
 import { ZENITH_CHECKBOX_OPTIONS, ZENITH_NUMBER_CONTROL_OPTIONS } from "../../common/ZenithControlOptions.js";
@@ -38,31 +36,14 @@ import {
   SCREEN_VIEW_MARGIN,
 } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
-import { EpochPreset } from "../model/EpochPreset.js";
 import { LocationPreset } from "../model/LocationPreset.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import { attachPlanetariumInteraction } from "./attachPlanetariumInteraction.js";
-import { CivilDateTimeControl } from "./CivilDateTimeControl.js";
 import { ObserverLocationNode } from "./ObserverLocationNode.js";
 import { PlanetariumSkyNode } from "./PlanetariumSkyNode.js";
 import { SelectedObjectReadout } from "./SelectedObjectReadout.js";
+import { TimeControlPanel } from "./TimeControlPanel.js";
 import { ZenithScreenSummaryContent } from "./ZenithScreenSummaryContent.js";
-
-/** Formats civil time for the control-panel readout (UTC, minute precision). */
-const formatCivilTimeUtc = (civilTimeMs: number): string =>
-  new Date(civilTimeMs).toISOString().replace("T", " ").slice(0, 16);
-
-/**
- * Local mean solar time (HH:MM) at the observer's longitude: civil UTC shifted
- * by longitude/15 hours. This is the clock the Sun keeps — noon is when the Sun
- * transits — so it explains why the sky does not match the UTC readout.
- */
-const formatLocalSolarTime = (civilTimeMs: number, longitudeDeg: number): string => {
-  const solar = new Date(civilTimeMs + (longitudeDeg / 15) * 3600 * 1000);
-  const hh = String(solar.getUTCHours()).padStart(2, "0");
-  const mm = String(solar.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-};
 
 /** Gap between the control panel and Reset All when they would overlap. */
 const RESET_ALL_PANEL_GAP = 8;
@@ -74,6 +55,7 @@ export class ZenithScreenView extends ScreenView {
   private readonly model: ZenithModel;
   private readonly skyNode: PlanetariumSkyNode;
   private readonly controlPanel: AccordionBox;
+  private readonly timePanel: TimeControlPanel;
   private readonly locationPanel: AccordionBox;
 
   public constructor(model: ZenithModel, options?: ScreenViewOptions) {
@@ -87,7 +69,6 @@ export class ZenithScreenView extends ScreenView {
     const stringManager = StringManager.getInstance();
     const controls = stringManager.getControls();
     const locations = stringManager.getLocations();
-    const epochs = stringManager.getEpochs();
     const a11y = stringManager.getA11yStrings();
 
     // ── Background ────────────────────────────────────────────────────────────
@@ -159,24 +140,6 @@ export class ZenithScreenView extends ScreenView {
       },
     );
 
-    const epochLabel = new Text(controls.epochStringProperty, titleOptions);
-    const epochCombo = new ComboBox(
-      model.epochPresetProperty,
-      [
-        { value: EpochPreset.DEFAULT, ...comboItem(epochs.defaultStringProperty) },
-        { value: EpochPreset.MARCH_EQUINOX, ...comboItem(epochs.marchEquinoxStringProperty) },
-        { value: EpochPreset.JUNE_SOLSTICE, ...comboItem(epochs.juneSolsticeStringProperty) },
-        { value: EpochPreset.SEPTEMBER_EQUINOX, ...comboItem(epochs.septemberEquinoxStringProperty) },
-        { value: EpochPreset.DECEMBER_SOLSTICE, ...comboItem(epochs.decemberSolsticeStringProperty) },
-        { value: EpochPreset.CUSTOM, ...comboItem(epochs.customStringProperty) },
-      ],
-      this,
-      {
-        ...SIM_COMBO_BOX_OPTIONS,
-        accessibleName: a11y.controls.epochStringProperty,
-      },
-    );
-
     const fovControl = new NumberControl(
       controls.fieldOfViewStringProperty,
       model.fieldOfViewDegProperty,
@@ -207,62 +170,6 @@ export class ZenithScreenView extends ScreenView {
         accessibleName: a11y.controls.magnitudeLimitStringProperty,
       },
     );
-
-    const civilDateTimeControl = new CivilDateTimeControl(model);
-
-    const civilTimeUtcProperty = new DerivedProperty([model.civilTimeMsProperty], formatCivilTimeUtc);
-    const civilTimeReadout = new Text(
-      new PatternStringProperty(controls.civilTimeStringProperty, {
-        time: civilTimeUtcProperty,
-      }),
-      {
-        font: labelFont,
-        fill: ZenithColors.textColorProperty,
-        maxWidth: CONTROL_PANEL_WIDTH - 40,
-      },
-    );
-
-    const localSolarTimeProperty = new DerivedProperty(
-      [model.civilTimeMsProperty, model.longitudeProperty],
-      formatLocalSolarTime,
-    );
-    const localSolarTimeReadout = new Text(
-      new PatternStringProperty(controls.localSolarTimeStringProperty, {
-        time: localSolarTimeProperty,
-      }),
-      {
-        font: labelFont,
-        fill: ZenithColors.textColorProperty,
-        maxWidth: CONTROL_PANEL_WIDTH - 40,
-      },
-    );
-
-    const lstReadout = new Text(
-      new PatternStringProperty(
-        controls.localSiderealTimeStringProperty,
-        {
-          hours: model.localSiderealTimeHoursProperty,
-        },
-        { decimalPlaces: { hours: 2 } },
-      ),
-      {
-        font: labelFont,
-        fill: ZenithColors.textColorProperty,
-        maxWidth: CONTROL_PANEL_WIDTH - 40,
-      },
-    );
-
-    const timeControl = new TimeControlNode(model.timer.isPlayingProperty, {
-      timeSpeedProperty: model.timeSpeedProperty,
-      ...TIME_CONTROL_SPEED_RADIO_OPTIONS,
-      playPauseStepButtonOptions: {
-        ...FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS,
-        stepForwardButtonOptions: {
-          ...FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS.stepForwardButtonOptions,
-          listener: () => model.stepForward(),
-        },
-      },
-    });
 
     const selectedReadout = new SelectedObjectReadout(model);
 
@@ -359,18 +266,7 @@ export class ZenithScreenView extends ScreenView {
     const panelContent = new VBox({
       spacing: PANEL_CONTENT_SPACING,
       align: "left",
-      children: [
-        epochLabel,
-        epochCombo,
-        civilDateTimeControl,
-        civilTimeReadout,
-        localSolarTimeReadout,
-        lstReadout,
-        timeControl,
-        fovControl,
-        magnitudeControl,
-        displayToggles,
-      ],
+      children: [fovControl, magnitudeControl, displayToggles],
     });
 
     const panelTitle = new Text(controls.panelTitleStringProperty, {
@@ -406,6 +302,9 @@ export class ZenithScreenView extends ScreenView {
       accessibleHelpTextExpanded: a11y.controls.controlPanelHelpExpandedStringProperty,
       accessibleHelpTextCollapsed: a11y.controls.controlPanelHelpCollapsedStringProperty,
     });
+
+    // ── Time panel: preset combo, date jump, Now, sidereal jumps, playback rate ─
+    this.timePanel = new TimeControlPanel(model, this);
 
     // ── Observer-location panel: combo + lat/lon controls + draggable Earth ───
     const observerLocationMap = new ObserverLocationNode(model.latitudeProperty, model.longitudeProperty, {
@@ -518,6 +417,7 @@ export class ZenithScreenView extends ScreenView {
 
     // Panels and Reset All sit above the sky so they remain interactive.
     this.addChild(this.locationPanel);
+    this.addChild(this.timePanel);
     this.addChild(this.controlPanel);
 
     const resetAllButton = new ResetAllButton({
@@ -532,23 +432,32 @@ export class ZenithScreenView extends ScreenView {
     const updateChromeLayout = (): void => {
       const visibleBounds = this.visibleBoundsProperty.value;
 
+      // The sky is drawn full-bleed to visibleBounds, which extends behind the
+      // navigation bar; layoutBounds.maxY is the bottom of the always-visible play
+      // area above it, so bottom-anchored chrome uses that to avoid being occluded.
+      const safeBottom = Math.min(visibleBounds.maxY, this.layoutBounds.maxY);
+
+      // Right column, top to bottom: Time panel, Display panel, Reset All.
+      this.timePanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
+      this.timePanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
+
       this.controlPanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
-      this.controlPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
+      this.controlPanel.top = this.timePanel.bottom + RESET_ALL_PANEL_GAP;
 
       this.locationPanel.left = visibleBounds.minX + SCREEN_VIEW_MARGIN;
       this.locationPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
 
       selectionPanel.left = visibleBounds.minX + SELECTION_PANEL_INSET;
-      selectionPanel.bottom = visibleBounds.maxY - SELECTION_PANEL_INSET;
+      selectionPanel.bottom = safeBottom - SELECTION_PANEL_INSET;
 
       resetAllButton.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
-      resetAllButton.bottom = visibleBounds.maxY - SCREEN_VIEW_MARGIN;
+      resetAllButton.bottom = safeBottom - SCREEN_VIEW_MARGIN;
       if (resetAllButton.top < this.controlPanel.bottom + RESET_ALL_PANEL_GAP) {
         resetAllButton.top = this.controlPanel.bottom + RESET_ALL_PANEL_GAP;
       }
 
       onscreenHint.centerX = visibleBounds.centerX;
-      onscreenHint.bottom = visibleBounds.maxY - SELECTION_PANEL_INSET;
+      onscreenHint.bottom = safeBottom - SELECTION_PANEL_INSET;
     };
 
     // Sky + background always fill the window (including past layoutBounds).
@@ -558,20 +467,22 @@ export class ZenithScreenView extends ScreenView {
       updateChromeLayout();
     });
 
-    // Keep Reset All clear when the accordion expands/collapses.
+    // Keep the stacked panels and Reset All clear when an accordion expands/collapses.
+    this.timePanel.boundsProperty.lazyLink(updateChromeLayout);
     this.controlPanel.boundsProperty.lazyLink(updateChromeLayout);
 
     // ── Accessibility: keyboard / reading traversal order ─────────────────────
     // AccordionBox owns PDOM order for its content; include the box as a whole.
     this.addChild(
       new Node({
-        pdomOrder: [this.skyNode, this.locationPanel, this.controlPanel, resetAllButton],
+        pdomOrder: [this.skyNode, this.locationPanel, this.timePanel, this.controlPanel, resetAllButton],
       }),
     );
   }
 
   public reset(): void {
     this.locationPanel.reset();
+    this.timePanel.reset();
     this.controlPanel.reset();
   }
 
