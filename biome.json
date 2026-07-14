@@ -161,7 +161,7 @@
       }
     },
     {
-      "includes": ["src/zenith-screen/model/BrightStarCatalog.ts"],
+      "includes": ["src/zenith-screen/model/BrightStarCatalog.ts", "src/zenith-screen/view/EarthShoreData.ts"],
       "linter": {
         "rules": {
           "suspicious": {

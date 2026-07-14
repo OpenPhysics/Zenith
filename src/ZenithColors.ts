@@ -296,6 +296,33 @@ const ZenithColors = {
     default: "#1a1a1a",
     projector: "#1a1a1a",
   }),
+
+  // ── Observer-location mini-map ───────────────────────────────────────────────
+  // Schematic Earth used to drag the observer's latitude / longitude.
+
+  /** Ocean fill of the observer-location mini-map. */
+  earthOceanColorProperty: new ProfileColorProperty(ZenithNamespace, "earthOcean", {
+    default: "#12325a",
+    projector: "#bcd6f0",
+  }),
+
+  /** Land (continent) fill of the observer-location mini-map. */
+  earthLandColorProperty: new ProfileColorProperty(ZenithNamespace, "earthLand", {
+    default: "#2f6b41",
+    projector: "#7cae82",
+  }),
+
+  /** Graticule (equator / prime-meridian / grid) lines on the mini-map. */
+  earthGraticuleColorProperty: new ProfileColorProperty(ZenithNamespace, "earthGraticule", {
+    default: "#5a7ba6",
+    projector: "#6b8fb5",
+  }),
+
+  /** Draggable observer-location pin on the mini-map. */
+  locationPinColorProperty: new ProfileColorProperty(ZenithNamespace, "locationPin", {
+    default: "#ff5a4d",
+    projector: "#d5342a",
+  }),
 };
 
 export default ZenithColors;

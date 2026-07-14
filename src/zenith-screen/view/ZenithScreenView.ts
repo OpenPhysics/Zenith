@@ -10,9 +10,11 @@ import { GridBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
 import { NumberControl, PhetFont, ResetAllButton, TimeControlNode } from "scenerystack/scenery-phet";
 import type { ScreenViewOptions } from "scenerystack/sim";
 import { ScreenView } from "scenerystack/sim";
-import { AccordionBox, Checkbox, ComboBox } from "scenerystack/sun";
+import { AccordionBox, Checkbox, ComboBox, RectangularPushButton } from "scenerystack/sun";
+import { resolveObserverLocation } from "../../common/resolveObserverLocation.js";
 import {
   FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS,
+  FLAT_RECTANGULAR_BUTTON_OPTIONS,
   FLAT_RESET_ALL_BUTTON_OPTIONS,
   LIGHT_SURFACE_TEXT_FILL,
   SIM_COMBO_BOX_OPTIONS,
@@ -41,6 +43,7 @@ import { LocationPreset } from "../model/LocationPreset.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import { attachPlanetariumInteraction } from "./attachPlanetariumInteraction.js";
 import { CivilDateTimeControl } from "./CivilDateTimeControl.js";
+import { ObserverLocationNode } from "./ObserverLocationNode.js";
 import { PlanetariumSkyNode } from "./PlanetariumSkyNode.js";
 import { SelectedObjectReadout } from "./SelectedObjectReadout.js";
 import { ZenithScreenSummaryContent } from "./ZenithScreenSummaryContent.js";
@@ -71,6 +74,7 @@ export class ZenithScreenView extends ScreenView {
   private readonly model: ZenithModel;
   private readonly skyNode: PlanetariumSkyNode;
   private readonly controlPanel: AccordionBox;
+  private readonly locationPanel: AccordionBox;
 
   public constructor(model: ZenithModel, options?: ScreenViewOptions) {
     super({
@@ -110,7 +114,6 @@ export class ZenithScreenView extends ScreenView {
         }),
     });
 
-    const locationLabel = new Text(controls.locationStringProperty, titleOptions);
     const locationCombo = new ComboBox(
       model.locationPresetProperty,
       [
@@ -357,10 +360,6 @@ export class ZenithScreenView extends ScreenView {
       spacing: PANEL_CONTENT_SPACING,
       align: "left",
       children: [
-        locationLabel,
-        locationCombo,
-        latitudeControl,
-        longitudeControl,
         epochLabel,
         epochCombo,
         civilDateTimeControl,
@@ -408,6 +407,87 @@ export class ZenithScreenView extends ScreenView {
       accessibleHelpTextCollapsed: a11y.controls.controlPanelHelpCollapsedStringProperty,
     });
 
+    // ── Observer-location panel: combo + lat/lon controls + draggable Earth ───
+    const observerLocationMap = new ObserverLocationNode(model.latitudeProperty, model.longitudeProperty, {
+      mapWidth: CONTROL_PANEL_WIDTH - 2 * PANEL_X_MARGIN,
+      accessibleName: a11y.controls.observerLocationMapStringProperty,
+      accessibleHelpText: a11y.controls.observerLocationMapHelpStringProperty,
+    });
+
+    // "Use my location": device geolocation with a coarse network fallback.
+    const useMyLocationButton = new RectangularPushButton({
+      ...FLAT_RECTANGULAR_BUTTON_OPTIONS,
+      content: new Text(controls.useMyLocationStringProperty, {
+        font: labelFont,
+        fill: LIGHT_SURFACE_TEXT_FILL,
+        maxWidth: CONTROL_PANEL_WIDTH - 60,
+      }),
+      accessibleName: a11y.controls.useMyLocationStringProperty,
+      accessibleHelpText: a11y.controls.useMyLocationHelpStringProperty,
+      listener: () => {
+        useMyLocationButton.enabled = false;
+        useMyLocationButton.addAccessibleResponse(a11y.controls.useMyLocationPendingStringProperty);
+        resolveObserverLocation()
+          .then(({ latitudeDeg, longitudeDeg }) => {
+            const lat = LATITUDE_RANGE.constrainValue(Math.round(latitudeDeg * 10) / 10);
+            const lon = LONGITUDE_RANGE.constrainValue(Math.round(longitudeDeg * 10) / 10);
+            model.latitudeProperty.value = lat;
+            model.longitudeProperty.value = lon;
+            useMyLocationButton.addAccessibleResponse(
+              new PatternStringProperty(a11y.controls.useMyLocationSuccessStringProperty, {
+                lat: lat.toFixed(1),
+                lon: lon.toFixed(1),
+              }),
+            );
+          })
+          .catch(() => {
+            useMyLocationButton.addAccessibleResponse(a11y.controls.useMyLocationErrorStringProperty);
+          })
+          .finally(() => {
+            useMyLocationButton.enabled = true;
+          });
+      },
+    });
+
+    const locationPanelContent = new VBox({
+      spacing: PANEL_CONTENT_SPACING,
+      align: "left",
+      children: [locationCombo, observerLocationMap, useMyLocationButton, latitudeControl, longitudeControl],
+    });
+
+    const locationPanelTitle = new Text(controls.observerLocationPanelTitleStringProperty, {
+      font: new PhetFont({ size: PANEL_TITLE_FONT_SIZE, weight: "bold" }),
+      fill: ZenithColors.textColorProperty,
+      maxWidth: CONTROL_PANEL_WIDTH - 50,
+    });
+
+    this.locationPanel = new AccordionBox(locationPanelContent, {
+      titleNode: locationPanelTitle,
+      expandedProperty: new BooleanProperty(true),
+      resize: true,
+      useExpandedBoundsWhenCollapsed: false,
+      useContentWidthWhenCollapsed: false,
+      cornerRadius: PANEL_CORNER_RADIUS,
+      fill: ZenithColors.panelBackgroundColorProperty,
+      stroke: ZenithColors.panelBorderColorProperty,
+      contentXMargin: PANEL_X_MARGIN,
+      contentYMargin: PANEL_Y_MARGIN,
+      contentAlign: "left",
+      titleAlignX: "left",
+      buttonAlign: "right",
+      showTitleWhenExpanded: true,
+      titleBarOptions: {
+        fill: ZenithColors.panelBackgroundColorProperty,
+      },
+      expandCollapseButtonOptions: {
+        accessibleName: a11y.controls.observerLocationPanelStringProperty,
+      },
+      accessibleContextResponseExpanded: a11y.controls.observerLocationPanelExpandedStringProperty,
+      accessibleContextResponseCollapsed: a11y.controls.observerLocationPanelCollapsedStringProperty,
+      accessibleHelpTextExpanded: a11y.controls.observerLocationPanelHelpExpandedStringProperty,
+      accessibleHelpTextCollapsed: a11y.controls.observerLocationPanelHelpCollapsedStringProperty,
+    });
+
     // ── Planetarium FOV play area (full visible window, under chrome) ─────────
     this.skyNode = new PlanetariumSkyNode(model, {
       bounds: this.visibleBoundsProperty.value.copy(),
@@ -436,7 +516,8 @@ export class ZenithScreenView extends ScreenView {
     });
     this.addChild(onscreenHint);
 
-    // Panel and Reset All sit above the sky so they remain interactive.
+    // Panels and Reset All sit above the sky so they remain interactive.
+    this.addChild(this.locationPanel);
     this.addChild(this.controlPanel);
 
     const resetAllButton = new ResetAllButton({
@@ -453,6 +534,9 @@ export class ZenithScreenView extends ScreenView {
 
       this.controlPanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
       this.controlPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
+
+      this.locationPanel.left = visibleBounds.minX + SCREEN_VIEW_MARGIN;
+      this.locationPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
 
       selectionPanel.left = visibleBounds.minX + SELECTION_PANEL_INSET;
       selectionPanel.bottom = visibleBounds.maxY - SELECTION_PANEL_INSET;
@@ -481,12 +565,13 @@ export class ZenithScreenView extends ScreenView {
     // AccordionBox owns PDOM order for its content; include the box as a whole.
     this.addChild(
       new Node({
-        pdomOrder: [this.skyNode, this.controlPanel, resetAllButton],
+        pdomOrder: [this.skyNode, this.locationPanel, this.controlPanel, resetAllButton],
       }),
     );
   }
 
   public reset(): void {
+    this.locationPanel.reset();
     this.controlPanel.reset();
   }
 

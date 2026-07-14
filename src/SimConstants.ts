@@ -68,6 +68,9 @@ export const LATITUDE_RANGE = new Range(-90, 90);
 /** Allowed observer longitude range (degrees). */
 export const LONGITUDE_RANGE = new Range(-180, 180);
 
+/** Arrow-key nudge (degrees) when dragging the observer pin on the location map. */
+export const LOCATION_STEP_DEGREES = 5;
+
 /**
  * Default local sidereal time is derived from civil time + longitude at reset;
  * this constant is only used as a fallback before the first sync.
@@ -78,7 +81,7 @@ export const DEFAULT_LOCAL_SIDEREAL_TIME_HOURS = 0;
  * Hours of civil (and roughly sidereal) time advanced per second of simulation
  * clock at NORMAL speed. Educational rate so diurnal motion is visible.
  */
-export const CIVIL_HOURS_PER_SIM_SECOND = 1;
+export const CIVIL_HOURS_PER_SIM_SECOND = 0.05;
 
 /**
  * @deprecated Prefer CIVIL_HOURS_PER_SIM_SECOND — kept as alias for call sites
