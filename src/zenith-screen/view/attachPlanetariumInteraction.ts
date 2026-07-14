@@ -407,10 +407,7 @@ export const attachPlanetariumInteraction = <T extends Node>(
       if (!(domEvent instanceof WheelEvent)) {
         return;
       }
-      const delta = Math.sign(domEvent.deltaY) * FOV_WHEEL_STEP_DEG;
-      model.fieldOfViewDegProperty.value = model.fieldOfViewDegProperty.range.constrainValue(
-        model.fieldOfViewDegProperty.value + delta,
-      );
+      model.zoomBy(Math.sign(domEvent.deltaY) * FOV_WHEEL_STEP_DEG);
       event.abort();
     },
   });

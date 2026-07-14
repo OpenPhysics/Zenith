@@ -85,12 +85,6 @@ export const DEFAULT_LOCAL_SIDEREAL_TIME_HOURS = 0;
  */
 export const CIVIL_HOURS_PER_SIM_SECOND = 1 / 3600;
 
-/**
- * @deprecated Prefer CIVIL_HOURS_PER_SIM_SECOND — kept as alias for call sites
- * that still speak in sidereal-hour drag units.
- */
-export const SIDEREAL_HOURS_PER_SIM_SECOND = CIVIL_HOURS_PER_SIM_SECOND;
-
 /** Hours in one sidereal day. */
 export const HOURS_PER_SIDEREAL_DAY = 24;
 
@@ -248,6 +242,12 @@ export const DEFAULT_SHOW_CARDINALS = true;
 /** Horizon altitude (degrees) used for cardinal direction labels. */
 export const CARDINAL_LABEL_ALTITUDE_DEG = 2;
 
+/** Default: draw the alt/az grid (the primary grid). */
+export const DEFAULT_SHOW_GRID = true;
+
+/** Default: draw the ground band and horizon line. */
+export const DEFAULT_SHOW_HORIZON = true;
+
 /** Default: draw the local meridian arc. */
 export const DEFAULT_SHOW_MERIDIAN = true;
 
@@ -308,7 +308,6 @@ ZenithNamespace.register("SimConstants", {
   DEFAULT_LONGITUDE_DEG,
   DEFAULT_LOCAL_SIDEREAL_TIME_HOURS,
   CIVIL_HOURS_PER_SIM_SECOND,
-  SIDEREAL_HOURS_PER_SIM_SECOND,
   HOURS_PER_SIDEREAL_DAY,
   DEFAULT_CIVIL_TIME_MS,
   CIVIL_YEAR_RANGE,
@@ -327,6 +326,8 @@ ZenithNamespace.register("SimConstants", {
   DEFAULT_SHOW_STAR_LABELS,
   DEFAULT_SHOW_CARDINALS,
   CARDINAL_LABEL_ALTITUDE_DEG,
+  DEFAULT_SHOW_GRID,
+  DEFAULT_SHOW_HORIZON,
   DEFAULT_SHOW_MERIDIAN,
   DEFAULT_SHOW_EQUATORIAL_GRID,
   DEFAULT_SHOW_CONSTELLATIONS,

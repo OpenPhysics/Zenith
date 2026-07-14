@@ -16,6 +16,7 @@ import {
   DEFAULT_LONGITUDE_DEG,
   DEFAULT_LOOK_ALTITUDE_DEG,
   DEFAULT_LOOK_AZIMUTH_DEG,
+  DEFAULT_SHOW_ATMOSPHERE,
   FIELD_OF_VIEW_RANGE,
   FOV_KEYBOARD_STEP_DEG,
   LOOK_ALTITUDE_RANGE,
@@ -46,7 +47,7 @@ describe("ZenithModel", () => {
     expect(model.fieldOfViewDegProperty.value).toBe(DEFAULT_FIELD_OF_VIEW_DEG);
     expect(model.showPlanetsProperty.value).toBe(true);
     expect(model.trueScaleBodiesProperty.value).toBe(false);
-    expect(model.showAtmosphereProperty.value).toBe(true);
+    expect(model.showAtmosphereProperty.value).toBe(DEFAULT_SHOW_ATMOSPHERE);
     expect(model.timer.isPlayingProperty.value).toBe(true);
     expect(model.timeRateProperty.value).toBe(1);
   });
@@ -191,7 +192,7 @@ describe("ZenithModel", () => {
     expect(model.showGridProperty.value).toBe(true);
     expect(model.showPlanetsProperty.value).toBe(true);
     expect(model.trueScaleBodiesProperty.value).toBe(false);
-    expect(model.showAtmosphereProperty.value).toBe(true);
+    expect(model.showAtmosphereProperty.value).toBe(DEFAULT_SHOW_ATMOSPHERE);
     // Preference-backed overlays outlive Reset All.
     expect(model.showStarLabelsProperty.value).toBe(false);
     expect(model.showConstellationsProperty.value).toBe(true);

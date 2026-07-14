@@ -44,6 +44,8 @@ import {
   DEFAULT_SHOW_CELESTIAL_EQUATOR,
   DEFAULT_SHOW_ECLIPTIC,
   DEFAULT_SHOW_EQUATORIAL_GRID,
+  DEFAULT_SHOW_GRID,
+  DEFAULT_SHOW_HORIZON,
   DEFAULT_SHOW_MERIDIAN,
   DEFAULT_SHOW_OBJECT_PATH,
   DEFAULT_SHOW_PLANETS,
@@ -267,14 +269,14 @@ export class ZenithModel implements TModel {
     this.fieldOfViewDegProperty = new NumberProperty(startFov, {
       range: FIELD_OF_VIEW_RANGE,
     });
-    this.showGridProperty = new BooleanProperty(true);
+    this.showGridProperty = new BooleanProperty(DEFAULT_SHOW_GRID);
     this.showCardinalsProperty = new BooleanProperty(DEFAULT_SHOW_CARDINALS);
     this.showMeridianProperty = new BooleanProperty(DEFAULT_SHOW_MERIDIAN);
     this.showEquatorialGridProperty = new BooleanProperty(DEFAULT_SHOW_EQUATORIAL_GRID);
     this.showEclipticProperty = new BooleanProperty(DEFAULT_SHOW_ECLIPTIC);
     this.showCelestialEquatorProperty = new BooleanProperty(DEFAULT_SHOW_CELESTIAL_EQUATOR);
     this.showObjectPathProperty = new BooleanProperty(DEFAULT_SHOW_OBJECT_PATH);
-    this.showHorizonProperty = new BooleanProperty(true);
+    this.showHorizonProperty = new BooleanProperty(DEFAULT_SHOW_HORIZON);
     // Showing the horizon again re-clamps a below-horizon view back up to it.
     // Guarded so this automatic re-clamp isn't mistaken for a manual pan.
     this.showHorizonProperty.lazyLink((show) => {
@@ -530,7 +532,9 @@ export class ZenithModel implements TModel {
 
   public reset(): void {
     this.timer.reset();
-    this.timeRateIndexProperty.reset();
+
+    // Location, epoch, and civil time are interdependent: reset them together
+    // under the preset guard so the CUSTOM markers don't fire, then re-derive LST.
     this.applyingPreset = true;
     this.locationPresetProperty.reset();
     this.epochPresetProperty.reset();
@@ -539,25 +543,35 @@ export class ZenithModel implements TModel {
     this.civilTimeMsProperty.reset();
     this.applyingPreset = false;
     this.syncLocalSiderealTime();
-    this.lookAzimuthDegProperty.reset();
-    this.lookAltitudeDegProperty.reset();
-    this.fieldOfViewDegProperty.reset();
-    this.showGridProperty.reset();
-    this.showCardinalsProperty.reset();
-    this.showMeridianProperty.reset();
-    this.showEquatorialGridProperty.reset();
-    this.showEclipticProperty.reset();
-    this.showCelestialEquatorProperty.reset();
-    this.showObjectPathProperty.reset();
-    this.showHorizonProperty.reset();
-    this.showAtmosphereProperty.reset();
-    this.showPlanetsProperty.reset();
-    this.trueScaleBodiesProperty.reset();
-    // Preference-backed overlays (star names, constellations, planet labels) are
-    // not reset — they outlive Reset All.
-    this.magnitudeLimitProperty.reset();
-    this.selectedObjectProperty.reset();
-    this.trackSelectedObjectProperty.reset();
+
+    // Every independent Property that resets unconditionally. Preference-backed
+    // overlays (star names, constellations, planet labels, deep catalog) are
+    // deliberately absent — they outlive Reset All.
+    const resettable: { reset: () => void }[] = [
+      this.timeRateIndexProperty,
+      this.lookAzimuthDegProperty,
+      this.lookAltitudeDegProperty,
+      this.fieldOfViewDegProperty,
+      this.showGridProperty,
+      this.showCardinalsProperty,
+      this.showMeridianProperty,
+      this.showEquatorialGridProperty,
+      this.showEclipticProperty,
+      this.showCelestialEquatorProperty,
+      this.showObjectPathProperty,
+      this.showHorizonProperty,
+      this.showAtmosphereProperty,
+      this.showPlanetsProperty,
+      this.trueScaleBodiesProperty,
+      this.magnitudeLimitProperty,
+      this.selectedObjectProperty,
+      this.trackSelectedObjectProperty,
+    ];
+
+    for (const property of resettable) {
+      property.reset();
+    }
+
     this.clearMeasurement();
   }
 

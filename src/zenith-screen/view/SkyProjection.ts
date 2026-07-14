@@ -99,26 +99,37 @@ export class SkyProjection {
   }
 
   /**
-   * Projects horizontal coordinates to panel pixels, or null when the point is
-   * beyond {@link PROJECTION_CULL_DEG} of the view center (near the antipode) or
-   * degenerate.
+   * Projects a horizon-frame unit vector (+X north, +Y east, +Z zenith) to panel
+   * pixels, or null when it is beyond {@link PROJECTION_CULL_DEG} of the view
+   * center (near the antipode) or degenerate. This is the primitive the hot star /
+   * line loops use directly (via {@link equatorialToHorizonVector}), skipping the
+   * alt/az-degrees round-trip that {@link project} would otherwise incur.
+   *
+   * The `!(z > COS_CULL)` test also rejects a non-finite z (e.g. from a NaN
+   * vector): left un-culled such points project to a non-finite pixel, which
+   * makes Kite's Shape.lineTo/moveTo assert and throw — poisoning the model
+   * notification that triggered the redraw.
    */
-  public project(altDeg: number, azDeg: number): Vector2 | null {
-    // Cull degenerate coordinates (e.g. the azimuth singularity exactly at the
-    // zenith, where equatorialToHorizontal divides by cos(alt) ≈ 0 and yields
-    // NaN). Left un-culled these project to a non-finite pixel, which makes
-    // Kite's Shape.lineTo/moveTo assert and throw — poisoning the model
-    // notification that triggered the redraw. Treat them like an off-view point.
-    if (!(Number.isFinite(altDeg) && Number.isFinite(azDeg))) {
-      return null;
-    }
-    const p = altAzToVector3(altDeg, azDeg);
+  public projectVector(p: Vector3): Vector2 | null {
     const z = p.dot(this.forward);
-    if (z <= COS_CULL) {
+    if (!(z > COS_CULL)) {
       return null;
     }
     const k = (2 * this.focalPx) / (1 + z);
     return new Vector2(this.centerX + k * p.dot(this.right), this.centerY - k * p.dot(this.up));
+  }
+
+  /**
+   * Projects horizontal coordinates to panel pixels, or null when the point is
+   * beyond {@link PROJECTION_CULL_DEG} of the view center (near the antipode) or
+   * degenerate (e.g. the azimuth singularity exactly at the zenith, where
+   * equatorialToHorizontal divides by cos(alt) ≈ 0 and yields NaN).
+   */
+  public project(altDeg: number, azDeg: number): Vector2 | null {
+    if (!(Number.isFinite(altDeg) && Number.isFinite(azDeg))) {
+      return null;
+    }
+    return this.projectVector(altAzToVector3(altDeg, azDeg));
   }
 }
 

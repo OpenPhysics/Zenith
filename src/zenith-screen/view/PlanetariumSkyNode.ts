@@ -19,6 +19,7 @@ import { PhetFont } from "scenerystack/scenery-phet";
 import {
   type EquatorialCoordinates,
   equatorialToHorizontal,
+  equatorialToHorizonVector,
   horizontalToEquatorial,
 } from "../../common/sky/SkyCoordinates.js";
 import { ASTRONOMICAL_TWILIGHT_DEG, effectiveStarVisibility, twilightSkyColors } from "../../common/sky/SkyTwilight.js";
@@ -942,10 +943,8 @@ export class PlanetariumSkyNode extends Node {
         if (!(from && to)) {
           continue;
         }
-        const fromH = equatorialToHorizontal(from.raHours, from.decDeg, lat, lst);
-        const toH = equatorialToHorizontal(to.raHours, to.decDeg, lat, lst);
-        const p0 = this.projectAltAz(fromH.altDeg, fromH.azDeg);
-        const p1 = this.projectAltAz(toH.altDeg, toH.azDeg);
+        const p0 = this.projection.projectVector(equatorialToHorizonVector(from.raHours, from.decDeg, lat, lst));
+        const p1 = this.projection.projectVector(equatorialToHorizonVector(to.raHours, to.decDeg, lat, lst));
         if (!(p0 && p1)) {
           continue;
         }
@@ -964,11 +963,14 @@ export class PlanetariumSkyNode extends Node {
     lst: number,
     hideBelowHorizon: boolean,
   ): void {
-    const { altDeg, azDeg } = equatorialToHorizontal(raHours, decDeg, lat, lst);
-    if (hideBelowHorizon && altDeg < 0) {
+    // Project straight from the horizon-frame vector: its +Z component is the
+    // "up" direction, so `vec.z < 0` is the below-horizon test with no alt/az
+    // (atan2/asin) round-trip — this runs over every catalog star each frame.
+    const vec = equatorialToHorizonVector(raHours, decDeg, lat, lst);
+    if (hideBelowHorizon && vec.z < 0) {
       return;
     }
-    const point = this.projectAltAz(altDeg, azDeg);
+    const point = this.projection.projectVector(vec);
     if (!point) {
       return;
     }

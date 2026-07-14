@@ -7,6 +7,15 @@
  * Positions are returned in J2000 equatorial coordinates so they share a frame
  * with the bright-star catalog; use SkyCoordinates.equatorialToHorizontal with
  * local sidereal time derived from {@link localSiderealTimeHours}.
+ *
+ * Frame caveat: positions are J2000 (EQJ) while {@link localSiderealTimeHours}
+ * uses Greenwich *apparent* (of-date) sidereal time, so the hour angle LST − RA
+ * carries the accumulated precession/nutation offset in RA. This is internally
+ * consistent — stars and planets share the convention and stay aligned with each
+ * other — and negligible near epoch 2000, but absolute alt/az (and rise/set
+ * azimuths) drift for epochs many decades from J2000. Acceptable for an
+ * educational planetarium sharing one fixed catalog frame; switch to of-date
+ * (EQD) positions here if far-epoch absolute accuracy is ever required.
  */
 
 import {
