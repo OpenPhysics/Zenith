@@ -187,11 +187,11 @@ const ZenithColors = {
 
   // ── Solar-system body fills (from planets.ini RGB; projector = darkened) ─────
   sunColorProperty: new ProfileColorProperty(ZenithNamespace, "sun", {
-    default: "#fafaf7",
+    default: "#ffd966",
     projector: "#c4a000",
   }),
   moonColorProperty: new ProfileColorProperty(ZenithNamespace, "moon", {
-    default: "#fafbf7",
+    default: "#e8e4d0",
     projector: "#888888",
   }),
 
@@ -204,31 +204,31 @@ const ZenithColors = {
     projector: "#4a4a4a",
   }),
   mercuryColorProperty: new ProfileColorProperty(ZenithNamespace, "mercury", {
-    default: "#faf6e9",
+    default: "#a8a8a8",
     projector: "#8a7a5a",
   }),
   venusColorProperty: new ProfileColorProperty(ZenithNamespace, "venus", {
-    default: "#faf5df",
+    default: "#ffe08a",
     projector: "#b89a40",
   }),
   marsColorProperty: new ProfileColorProperty(ZenithNamespace, "mars", {
-    default: "#ffc480",
+    default: "#e2542a",
     projector: "#a05020",
   }),
   jupiterColorProperty: new ProfileColorProperty(ZenithNamespace, "jupiter", {
-    default: "#fafbee",
+    default: "#d8b48a",
     projector: "#9a8050",
   }),
   saturnColorProperty: new ProfileColorProperty(ZenithNamespace, "saturn", {
-    default: "#faf3db",
+    default: "#e8d29a",
     projector: "#9a8540",
   }),
   uranusColorProperty: new ProfileColorProperty(ZenithNamespace, "uranus", {
-    default: "#d5f5ff",
+    default: "#a8ecec",
     projector: "#4080a0",
   }),
   neptuneColorProperty: new ProfileColorProperty(ZenithNamespace, "neptune", {
-    default: "#7094ff",
+    default: "#5070e0",
     projector: "#3040a0",
   }),
 

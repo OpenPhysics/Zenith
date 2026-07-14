@@ -142,10 +142,12 @@ export const TIME_RATE_INDEX_RANGE = new Range(0, TIME_RATE_MULTIPLIERS.length -
 export const DEFAULT_LOOK_AZIMUTH_DEG = 180;
 
 /**
- * Default look altitude at the view center (degrees). Tilted up so both the
- * horizon and the zenith are in frame at the default field of view.
+ * Default look altitude at the view center (degrees). Tilted well up so the
+ * horizon sinks toward the bottom of the frame — this is a star-gazing view, so
+ * most of the panel goes to the sky rather than the ground. The zenith stays in
+ * frame at the default (wide) field of view.
  */
-export const DEFAULT_LOOK_ALTITUDE_DEG = 40;
+export const DEFAULT_LOOK_ALTITUDE_DEG = 30;
 
 /** Allowed look-altitude range (degrees): nadir-centered (looking straight down) up to zenith-centered. */
 export const LOOK_ALTITUDE_RANGE = new Range(-90, 90);
@@ -217,7 +219,7 @@ export const STAR_RADIUS_MIN = 0.6;
 export const STAR_MAG_BRIGHT = -1.5;
 
 /** Default: draw twilight sky colors and wash out daytime stars. */
-export const DEFAULT_SHOW_ATMOSPHERE = true;
+export const DEFAULT_SHOW_ATMOSPHERE = false;
 
 /** Default: draw Sun / Moon / planets in the FOV. */
 export const DEFAULT_SHOW_PLANETS = true;

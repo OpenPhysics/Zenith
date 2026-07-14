@@ -68,7 +68,11 @@ export const altAzToVector3 = (altDeg: number, azDeg: number): Vector3 => {
 
 /**
  * Equatorial → horizontal for an observer at `latitudeDeg` and local sidereal
- * time `lstHours`. Standard astronomy transform.
+ * time `lstHours`. Standard astronomy transform, evaluated through the
+ * horizon-frame vector (north, east, up) so azimuth is a division-free
+ * atan2(east, north). The classical form divides by cos(lat)·cos(alt), whose
+ * numerator cancels catastrophically near the poles and collapses every
+ * azimuth to ±90°.
  */
 export const equatorialToHorizontal = (
   raHours: number,
@@ -80,14 +84,12 @@ export const equatorialToHorizontal = (
   const lat = degToRad(latitudeDeg);
   const ha = hoursToRadians(hourAngle(raHours, lstHours));
 
-  const sinAlt = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha);
-  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
-  const cosAlt = Math.cos(alt);
+  const north = Math.sin(dec) * Math.cos(lat) - Math.cos(dec) * Math.sin(lat) * Math.cos(ha);
+  const east = -Math.cos(dec) * Math.sin(ha);
+  const up = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha);
 
-  // Azimuth from North through East. atan2 keeps the correct quadrant.
-  const sinAz = (-Math.cos(dec) * Math.sin(ha)) / cosAlt;
-  const cosAz = (Math.sin(dec) - Math.sin(lat) * sinAlt) / (Math.cos(lat) * cosAlt);
-  const az = normalizeDegrees(radToDeg(Math.atan2(sinAz, cosAz)));
+  const alt = Math.atan2(up, Math.hypot(north, east));
+  const az = normalizeDegrees(radToDeg(Math.atan2(east, north)));
 
   return { altDeg: radToDeg(alt), azDeg: az };
 };
@@ -128,13 +130,14 @@ export const horizontalToEquatorial = (
   const az = degToRad(azDeg);
   const lat = degToRad(latitudeDeg);
 
-  const sinDec = Math.sin(lat) * Math.sin(alt) + Math.cos(lat) * Math.cos(alt) * Math.cos(az);
-  const dec = Math.asin(Math.max(-1, Math.min(1, sinDec)));
-  const cosDec = Math.cos(dec);
+  // Same division-free vector form as equatorialToHorizontal (the transform is
+  // its own inverse with az ↔ −ha), so it also stays finite at the poles.
+  const toPole = Math.sin(alt) * Math.sin(lat) + Math.cos(alt) * Math.cos(az) * Math.cos(lat);
+  const toEquinox = Math.sin(alt) * Math.cos(lat) - Math.cos(alt) * Math.cos(az) * Math.sin(lat);
+  const westward = Math.cos(alt) * Math.sin(az);
 
-  const sinHa = (-Math.cos(alt) * Math.sin(az)) / cosDec;
-  const cosHa = (Math.sin(alt) - Math.sin(lat) * sinDec) / (Math.cos(lat) * cosDec);
-  const haHours = radiansToHours(Math.atan2(sinHa, cosHa));
+  const dec = Math.atan2(toPole, Math.hypot(toEquinox, westward));
+  const haHours = radiansToHours(Math.atan2(-westward, toEquinox));
 
   return { raHours: normalizeHours(lstHours - haHours), decDeg: radToDeg(dec) };
 };

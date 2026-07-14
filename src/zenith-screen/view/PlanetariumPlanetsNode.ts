@@ -23,7 +23,7 @@ import {
 } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
 import { StringManager } from "../../i18n/StringManager.js";
-import { MIN_ANGULAR_DISC_RADIUS_PX, STAR_MAG_BRIGHT } from "../../SimConstants.js";
+import { STAR_MAG_BRIGHT } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
 import { SOLAR_SYSTEM_BODIES, type SolarSystemBodyVisual } from "../model/SolarSystemBodies.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
@@ -139,7 +139,7 @@ export class PlanetariumPlanetsNode extends Node {
       return angularDiameterToRadiusPx(
         diameterDeg,
         projection.degreesPerPixelAt(altDeg, azDeg),
-        MIN_ANGULAR_DISC_RADIUS_PX,
+        visual.minDiscRadiusPx,
       );
     }
     const t = clamp((mag - STAR_MAG_BRIGHT) / (PLANET_MAG_FAINT - STAR_MAG_BRIGHT), 0, 1);
