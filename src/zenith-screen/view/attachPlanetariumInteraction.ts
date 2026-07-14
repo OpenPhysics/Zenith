@@ -5,20 +5,20 @@
  *   - plain drag / arrow keys       → pan look az/alt
  *   - Ctrl/Meta-drag / Ctrl+arrows  → advance civil time (LST follows)
  *   - click (small motion)          → select nearest named star / planet
+ *   - Shift-click                   → angular-distance measure points
  *   - N / P                         → cycle selectable objects in view
- *   - Escape                        → clear selection
+ *   - Escape                        → clear selection / measurement
  *   - wheel                         → change field of view
  */
 
 import { PatternStringProperty, type TReadOnlyProperty } from "scenerystack/axon";
-import { clamp, Vector2 } from "scenerystack/dot";
-import { DragListener, KeyboardListener, type Node } from "scenerystack/scenery";
+import { Vector2 } from "scenerystack/dot";
+import { DragListener, HotkeyData, KeyboardListener, type Node } from "scenerystack/scenery";
+import { AccessibleDraggableOptions } from "scenerystack/scenery-phet";
 import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
 import ZenithHotkeyData from "../../common/ZenithHotkeyData.js";
 import { StringManager } from "../../i18n/StringManager.js";
 import {
-  FIELD_OF_VIEW_RANGE,
-  LOOK_ALTITUDE_RANGE,
   LOOK_PAN_DEG_PER_PIXEL,
   LOOK_PAN_KEYBOARD_STEP_DEG,
   TIME_DRAG_HOURS_PER_PIXEL,
@@ -32,6 +32,9 @@ import { wrapLookAzimuth } from "./SkyProjection.js";
 /** Max pointer travel (view px) still treated as a click rather than a pan. */
 const CLICK_MOVE_THRESHOLD_PX = 6;
 
+/** FOV change per discrete wheel notch (degrees). */
+const FOV_WHEEL_STEP_DEG = 5;
+
 export type AttachPlanetariumInteractionOptions = {
   model: ZenithModel;
   skyNode: PlanetariumSkyNode;
@@ -42,6 +45,10 @@ export type AttachPlanetariumInteractionOptions = {
 const formatHours = (hours: number): string => hours.toFixed(2);
 const formatDeg = (deg: number): string => deg.toFixed(1);
 const formatMag = (mag: number): string => mag.toFixed(2);
+
+/** True when the DOM event reports the given modifier (mouse / pointer / keyboard / wheel). */
+const domModifier = (domEvent: Event | null | undefined, key: "ctrlKey" | "metaKey" | "shiftKey"): boolean =>
+  !!domEvent && key in domEvent && !!(domEvent as unknown as Record<string, boolean>)[key];
 
 const announceSelection = (target: Node, model: ZenithModel, selected: SelectedSkyObject | null): void => {
   const a11y = StringManager.getInstance().getA11yStrings();
@@ -127,27 +134,23 @@ export const attachPlanetariumInteraction = <T extends Node>(
 ): T => {
   const { model, skyNode, accessibleNameProperty, accessibleHelpTextProperty } = options;
 
-  target.tagName = "div";
-  target.focusable = true;
-  target.accessibleName = accessibleNameProperty;
-  if (accessibleHelpTextProperty) {
-    target.accessibleHelpText = accessibleHelpTextProperty;
-  }
+  // application role + aria-label name behavior for custom keyboard interactives
+  target.mutate({
+    ...AccessibleDraggableOptions,
+    accessibleName: accessibleNameProperty,
+    ...(accessibleHelpTextProperty ? { accessibleHelpText: accessibleHelpTextProperty } : {}),
+  });
 
-  let lastX = 0;
-  let lastY = 0;
-  let startX = 0;
-  let startY = 0;
+  const lastPoint = new Vector2(0, 0);
+  const startPoint = new Vector2(0, 0);
   let dragMode: "pan" | "time" = "pan";
   let totalMove = 0;
   let measureClick = false;
 
   const panBy = (dAzDeg: number, dAltDeg: number): void => {
     model.lookAzimuthDegProperty.value = wrapLookAzimuth(model.lookAzimuthDegProperty.value + dAzDeg);
-    model.lookAltitudeDegProperty.value = clamp(
+    model.lookAltitudeDegProperty.value = model.lookAltitudeDegProperty.range.constrainValue(
       model.lookAltitudeDegProperty.value + dAltDeg,
-      LOOK_ALTITUDE_RANGE.min,
-      LOOK_ALTITUDE_RANGE.max,
     );
   };
 
@@ -159,20 +162,17 @@ export const attachPlanetariumInteraction = <T extends Node>(
   target.addInputListener(
     new DragListener({
       start: (event) => {
-        const domEvent = event.domEvent as { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } | null;
-        lastX = event.pointer.point.x;
-        lastY = event.pointer.point.y;
-        startX = lastX;
-        startY = lastY;
+        lastPoint.set(event.pointer.point);
+        startPoint.set(event.pointer.point);
         totalMove = 0;
-        measureClick = domEvent?.shiftKey ?? false;
-        dragMode = domEvent?.ctrlKey || domEvent?.metaKey ? "time" : "pan";
+        measureClick = domModifier(event.domEvent, "shiftKey");
+        dragMode = domModifier(event.domEvent, "ctrlKey") || domModifier(event.domEvent, "metaKey") ? "time" : "pan";
       },
       drag: (event) => {
         const p = event.pointer.point;
-        const dx = p.x - lastX;
-        const dy = p.y - lastY;
-        totalMove = Math.hypot(p.x - startX, p.y - startY);
+        const dx = p.x - lastPoint.x;
+        const dy = p.y - lastPoint.y;
+        totalMove = p.distance(startPoint);
         if (dragMode === "time") {
           model.advanceSiderealTime(-dx * TIME_DRAG_HOURS_PER_PIXEL);
         } else {
@@ -181,15 +181,13 @@ export const attachPlanetariumInteraction = <T extends Node>(
           // dragging down moves it down, revealing higher altitude.
           panBy(-dx * LOOK_PAN_DEG_PER_PIXEL, dy * LOOK_PAN_DEG_PER_PIXEL);
         }
-        lastX = p.x;
-        lastY = p.y;
+        lastPoint.set(p);
       },
       end: (event) => {
         if (!event || dragMode !== "pan" || totalMove > CLICK_MOVE_THRESHOLD_PX) {
           return;
         }
-        const localPoint = skyNode.globalToLocalPoint(event.pointer.point);
-        const viewPoint = new Vector2(localPoint.x, localPoint.y);
+        const viewPoint = skyNode.globalToLocalPoint(event.pointer.point);
         if (measureClick) {
           model.addMeasurePoint(skyNode.equatorialAtViewPoint(viewPoint));
           announceMeasurement(target, model);
@@ -200,29 +198,18 @@ export const attachPlanetariumInteraction = <T extends Node>(
     }),
   );
 
+  // Look pan + time scrub — hold-repeat, matching continuous drag.
   target.addInputListener(
     new KeyboardListener({
-      keys: [
-        ...ZenithHotkeyData.ARROW_KEYS,
-        ...ZenithHotkeyData.ADVANCE_CIVIL_TIME_LISTENER_KEYS,
-        ...ZenithHotkeyData.CLEAR_SELECTION_KEYS,
-      ],
+      keyStringProperties: HotkeyData.combineKeyStringProperties([
+        ZenithHotkeyData.LOOK_PAN,
+        ZenithHotkeyData.ADVANCE_CIVIL_TIME_LISTENER,
+      ]),
       fireOnHold: true,
       fire: (_event, keysPressed) => {
-        if (keysPressed === "escape") {
-          if (model.measureStartProperty.value || model.measureEndProperty.value) {
-            model.clearMeasurement();
-            announceMeasurement(target, model);
-          }
-          setSelection(null);
-          return;
-        }
-        if (keysPressed === "ctrl+arrowLeft" || keysPressed === "meta+arrowLeft") {
-          model.advanceSiderealTime(TIME_KEYBOARD_STEP_HOURS);
-          return;
-        }
-        if (keysPressed === "ctrl+arrowRight" || keysPressed === "meta+arrowRight") {
-          model.advanceSiderealTime(-TIME_KEYBOARD_STEP_HOURS);
+        if (ZenithHotkeyData.ADVANCE_CIVIL_TIME_LISTENER.hasKeyStroke(keysPressed)) {
+          const sign = keysPressed.includes("arrowLeft") ? 1 : -1;
+          model.advanceSiderealTime(sign * TIME_KEYBOARD_STEP_HOURS);
           return;
         }
         if (keysPressed === "arrowLeft") {
@@ -238,19 +225,36 @@ export const attachPlanetariumInteraction = <T extends Node>(
     }),
   );
 
+  // Escape clears measurement / selection — single fire (no hold-repeat).
+  target.addInputListener(
+    new KeyboardListener({
+      keyStringProperties: ZenithHotkeyData.CLEAR_SELECTION.keyStringProperties,
+      fireOnHold: false,
+      fire: () => {
+        if (model.measureStartProperty.value || model.measureEndProperty.value) {
+          model.clearMeasurement();
+          announceMeasurement(target, model);
+        }
+        setSelection(null);
+      },
+    }),
+  );
+
   // Discrete object cycling — no hold-repeat (unlike pan).
   target.addInputListener(
     new KeyboardListener({
-      keys: [...ZenithHotkeyData.SELECT_NEXT_KEYS, ...ZenithHotkeyData.SELECT_PREVIOUS_KEYS],
+      keyStringProperties: HotkeyData.combineKeyStringProperties([
+        ZenithHotkeyData.SELECT_NEXT,
+        ZenithHotkeyData.SELECT_PREVIOUS,
+      ]),
       fireOnHold: false,
       fire: (_event, keysPressed) => {
-        if (keysPressed === "n") {
+        if (ZenithHotkeyData.SELECT_NEXT.hasKeyStroke(keysPressed)) {
           cycleSelection(model, skyNode, 1);
-          announceSelection(target, model, model.selectedObjectProperty.value);
-        } else if (keysPressed === "p") {
+        } else if (ZenithHotkeyData.SELECT_PREVIOUS.hasKeyStroke(keysPressed)) {
           cycleSelection(model, skyNode, -1);
-          announceSelection(target, model, model.selectedObjectProperty.value);
         }
+        announceSelection(target, model, model.selectedObjectProperty.value);
       },
     }),
   );
@@ -258,15 +262,13 @@ export const attachPlanetariumInteraction = <T extends Node>(
   // Wheel zooms the field of view (narrower = zoom in).
   target.addInputListener({
     wheel: (event) => {
-      const domEvent = event.domEvent as WheelEvent | null;
-      if (!domEvent) {
+      const domEvent = event.domEvent;
+      if (!(domEvent instanceof WheelEvent)) {
         return;
       }
-      const delta = Math.sign(domEvent.deltaY) * 5;
-      model.fieldOfViewDegProperty.value = clamp(
+      const delta = Math.sign(domEvent.deltaY) * FOV_WHEEL_STEP_DEG;
+      model.fieldOfViewDegProperty.value = model.fieldOfViewDegProperty.range.constrainValue(
         model.fieldOfViewDegProperty.value + delta,
-        FIELD_OF_VIEW_RANGE.min,
-        FIELD_OF_VIEW_RANGE.max,
       );
       event.abort();
     },
@@ -275,8 +277,7 @@ export const attachPlanetariumInteraction = <T extends Node>(
   // Hover identifies the nearest object under the pointer without a click.
   target.addInputListener({
     move: (event) => {
-      const localPoint = skyNode.globalToLocalPoint(event.pointer.point);
-      skyNode.updateHover(new Vector2(localPoint.x, localPoint.y));
+      skyNode.updateHover(skyNode.globalToLocalPoint(event.pointer.point));
     },
     exit: () => skyNode.updateHover(null),
   });

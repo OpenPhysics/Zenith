@@ -15,14 +15,6 @@ const SELECT_PREVIOUS_KEYS = ["p"] as const;
 const CLEAR_SELECTION_KEYS = ["escape"] as const;
 
 const ZenithHotkeyData = {
-  ARROW_KEYS,
-  ADVANCE_CIVIL_TIME_KEYS: CTRL_HORIZONTAL_ARROW_KEYS,
-  /** Listener also accepts Meta+arrows (macOS); help dialog documents Ctrl. */
-  ADVANCE_CIVIL_TIME_LISTENER_KEYS: [...CTRL_HORIZONTAL_ARROW_KEYS, ...META_HORIZONTAL_ARROW_KEYS] as const,
-  SELECT_NEXT_KEYS,
-  SELECT_PREVIOUS_KEYS,
-  CLEAR_SELECTION_KEYS,
-
   /**
    * Pan look azimuth / altitude (arrow keys), matching plain drag.
    */
@@ -34,11 +26,22 @@ const ZenithHotkeyData = {
 
   /**
    * Advance / rewind civil time (Ctrl + left/right), matching Ctrl-drag.
+   * Documented in the keyboard-help dialog (Meta is macOS-only, see listener).
    */
   ADVANCE_CIVIL_TIME: new HotkeyData({
     keys: [...CTRL_HORIZONTAL_ARROW_KEYS],
     repoName: "zenith",
     binderName: "Advance Civil Time",
+  }),
+
+  /**
+   * Same as {@link ADVANCE_CIVIL_TIME}, plus Meta+arrows for macOS.
+   * Used by the focused sky KeyboardListener; help dialog documents Ctrl only.
+   */
+  ADVANCE_CIVIL_TIME_LISTENER: new HotkeyData({
+    keys: [...CTRL_HORIZONTAL_ARROW_KEYS, ...META_HORIZONTAL_ARROW_KEYS],
+    repoName: "zenith",
+    binderName: "Advance Civil Time (with Meta)",
   }),
 
   /**
