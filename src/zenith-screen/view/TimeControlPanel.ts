@@ -84,7 +84,6 @@ export class TimeControlPanel extends AccordionBox {
         }),
     });
 
-    const epochLabel = new Text(controls.epochStringProperty, titleOptions);
     const epochCombo = new ComboBox(
       model.epochPresetProperty,
       [
@@ -207,14 +206,17 @@ export class TimeControlPanel extends AccordionBox {
       ),
     );
 
+    const epochRow = new HBox({
+      spacing: PANEL_CONTENT_SPACING,
+      children: [epochCombo, nowButton],
+    });
+
     const content = new VBox({
       spacing: PANEL_CONTENT_SPACING,
       align: "left",
       children: [
-        epochLabel,
-        epochCombo,
+        epochRow,
         civilDateTimeControl,
-        nowButton,
         siderealRow,
         rateControlRow,
         rateReadout,

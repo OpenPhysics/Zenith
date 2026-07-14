@@ -6,7 +6,7 @@
  */
 
 import { BooleanProperty, PatternStringProperty } from "scenerystack/axon";
-import { GridBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
+import { GridBox, HBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
 import { NumberControl, PhetFont, ResetAllButton } from "scenerystack/scenery-phet";
 import type { ScreenViewOptions } from "scenerystack/sim";
 import { ScreenView } from "scenerystack/sim";
@@ -50,6 +50,12 @@ const RESET_ALL_PANEL_GAP = 8;
 
 /** Inset of the selection readout from the play-area edges. */
 const SELECTION_PANEL_INSET = 8;
+
+/**
+ * Extra clearance above the bottom edge so the selection readout clears the
+ * Joist navigation bar, which overlaps the bottom of the play area.
+ */
+const SELECTION_PANEL_BOTTOM_CLEARANCE = 52;
 
 export class ZenithScreenView extends ScreenView {
   private readonly model: ZenithModel;
@@ -319,7 +325,7 @@ export class ZenithScreenView extends ScreenView {
       content: new Text(controls.useMyLocationStringProperty, {
         font: labelFont,
         fill: LIGHT_SURFACE_TEXT_FILL,
-        maxWidth: CONTROL_PANEL_WIDTH - 60,
+        maxWidth: CONTROL_PANEL_WIDTH - 140,
       }),
       accessibleName: a11y.controls.useMyLocationStringProperty,
       accessibleHelpText: a11y.controls.useMyLocationHelpStringProperty,
@@ -348,10 +354,15 @@ export class ZenithScreenView extends ScreenView {
       },
     });
 
+    const locationRow = new HBox({
+      spacing: PANEL_CONTENT_SPACING,
+      children: [locationCombo, useMyLocationButton],
+    });
+
     const locationPanelContent = new VBox({
       spacing: PANEL_CONTENT_SPACING,
       align: "left",
-      children: [locationCombo, observerLocationMap, useMyLocationButton, latitudeControl, longitudeControl],
+      children: [locationRow, observerLocationMap, latitudeControl, longitudeControl],
     });
 
     const locationPanelTitle = new Text(controls.observerLocationPanelTitleStringProperty, {
@@ -437,18 +448,19 @@ export class ZenithScreenView extends ScreenView {
       // area above it, so bottom-anchored chrome uses that to avoid being occluded.
       const safeBottom = Math.min(visibleBounds.maxY, this.layoutBounds.maxY);
 
-      // Right column, top to bottom: Time panel, Display panel, Reset All.
-      this.timePanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
-      this.timePanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
-
-      this.controlPanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
-      this.controlPanel.top = this.timePanel.bottom + RESET_ALL_PANEL_GAP;
-
+      // Left column, top to bottom: Location panel, Time panel.
       this.locationPanel.left = visibleBounds.minX + SCREEN_VIEW_MARGIN;
       this.locationPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
 
+      this.timePanel.left = visibleBounds.minX + SCREEN_VIEW_MARGIN;
+      this.timePanel.top = this.locationPanel.bottom + RESET_ALL_PANEL_GAP;
+
+      // Right column, top to bottom: Display panel, Reset All.
+      this.controlPanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
+      this.controlPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
+
       selectionPanel.left = visibleBounds.minX + SELECTION_PANEL_INSET;
-      selectionPanel.bottom = safeBottom - SELECTION_PANEL_INSET;
+      selectionPanel.bottom = safeBottom - SELECTION_PANEL_BOTTOM_CLEARANCE;
 
       resetAllButton.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
       resetAllButton.bottom = safeBottom - SCREEN_VIEW_MARGIN;
@@ -468,8 +480,13 @@ export class ZenithScreenView extends ScreenView {
     });
 
     // Keep the stacked panels and Reset All clear when an accordion expands/collapses.
+    this.locationPanel.boundsProperty.lazyLink(updateChromeLayout);
     this.timePanel.boundsProperty.lazyLink(updateChromeLayout);
     this.controlPanel.boundsProperty.lazyLink(updateChromeLayout);
+    // Re-anchor the selection readout's bottom when its content grows (e.g. when
+    // an object is selected and more rows appear) so it grows upward, not under
+    // the navigation bar.
+    selectionPanel.boundsProperty.lazyLink(updateChromeLayout);
 
     // ── Accessibility: keyboard / reading traversal order ─────────────────────
     // AccordionBox owns PDOM order for its content; include the box as a whole.
