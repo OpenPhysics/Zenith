@@ -108,6 +108,8 @@ Sun is highest.
 
 - **Bright stars** — catalog stars down to about magnitude 5.8; a magnitude
   limit hides fainter ones for less clutter.
+- **Deeper star catalog** — an optional Hipparcos-based catalog of about 25,700
+  stars down to magnitude 7.5, enabled via Preferences → Simulation.
 - **Star names** — curated bright-star labels (Preferences → Simulation, or
   panel options depending on build).
 - **Constellations** — stick figures for all 88 IAU constellations (western
@@ -153,8 +155,9 @@ You can open the sim with a prepared observer and epoch in the URL, for example:
 `?lat=-33.9&lon=151.2&date=2024-12-21T10:00:00Z&fov=60&magLimit=4`
 
 Useful parameters: `lat`, `lon`, `date` (ISO-8601 UTC), `fov`, `magLimit`, plus
-optional toggles for star names, constellation lines, and planet names. Full
-list: [implementation-notes.md](./implementation-notes.md#deep-link-query-parameters).
+optional toggles for star names, constellation lines, planet names, and the
+deeper star catalog. Full list:
+[implementation-notes.md](./implementation-notes.md#deep-link-query-parameters).
 
 ---
 
