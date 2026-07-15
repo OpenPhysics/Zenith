@@ -31,9 +31,12 @@ main.ts
             ├─ ZenithScreenSummaryContent
             └─ ZenithKeyboardHelpContent
 
-src/common/sky/SkyCoordinates.ts   equatorial ↔ horizontal
+src/common/sky/SkyCoordinates.ts   equatorial ↔ horizontal (+ rise/set/transit)
 src/common/sky/EclipticCoordinates.ts  equatorial ↔ ecliptic
 src/common/sky/PlanetEphemeris.ts  astronomy-engine wrapper
+src/common/sky/SkyTwilight.ts      sky color from solar altitude
+src/common/sky/civilDateTime.ts    UTC ↔ local-solar time formatting
+src/common/sky/moonPhaseShape.ts   Moon-phase illuminated-disc glyph
 src/zenith-screen/model/BrightStarCatalog.ts
 src/zenith-screen/model/DeepStarCatalog.ts
 src/zenith-screen/model/NamedBrightStars.ts
@@ -41,7 +44,9 @@ src/zenith-screen/model/ConstellationLines.ts
 src/zenith-screen/model/LocationPreset.ts
 src/zenith-screen/model/EpochPreset.ts
 src/zenith-screen/model/SolarSystemBodies.ts
+src/zenith-screen/model/SelectedSkyObject.ts
 src/zenith-screen/view/SkyProjection.ts
+src/zenith-screen/view/CelestialLinesNode.ts
 src/zenith-screen/view/TimeControlPanel.ts
 src/zenith-screen/view/ObserverLocationNode.ts
 reference/stellarium-web-engine/   (gitignored local reference)
@@ -168,9 +173,11 @@ Wired in `attachPlanetariumInteraction` and control-panel listeners:
 | Shift-click | Measure angular distance between two points |
 | Click (small motion) | Select nearest named star or planet |
 | N / P | Cycle selectable objects in the FOV |
+| Escape | Clear selection and the angular-measurement tool |
 | T | Toggle tracking of selected object |
 | + / − (or scroll wheel) | Change FOV |
-| J / K / L | Adjust time rate (slower/reverse · play/pause · faster/forward) |
+| J / K / L | Adjust time rate (slower/reverse · normal `1×` · faster/forward) |
+| Shift + + / Shift + − | Advance / rewind one sidereal day (hold to sweep) |
 | Shift + N/S/E/W/Z | Quick-look North, South, East, West, or Zenith |
 | A / G / Q / Z / E / M | Toggle Atmosphere, Horizon, Cardinals, Grid, Equatorial grid, Meridian |
 | Location ComboBox | Jump observer site |
@@ -180,6 +187,17 @@ Wired in `attachPlanetariumInteraction` and control-panel listeners:
 | Preferences → Simulation | Star names, constellation lines, planet names, deeper star catalog (also seedable via query params) |
 
 Keyboard Shortcuts (`?`) come from `ZenithKeyboardHelpContent` / `ZenithHotkeyData`.
+
+### Selection details
+
+`SelectedObjectReadout` reacts to `selectedObjectProperty`: name, magnitude,
+RA/Dec, and alt/az, plus **rise / set / transit** event times. Times are
+computed by `riseSetInfo` (`SkyCoordinates.ts`) as the next LST at which the
+object crosses altitude 0° (rise/set) or the meridian (transit), then reported
+both as a "time-from-now" duration and a local-solar clock string. Circumpolar
+and never-rises objects get a note instead (transit is still shown for
+circumpolar stars). The readout also hosts the **Track selected object**
+checkbox (enabled only while something is selected).
 
 ---
 
@@ -210,4 +228,3 @@ Example classroom link:
 
 - Saturn rings
 - Planetary moons, eclipses, HiPS imagery
-- Circumpolar / rise–set cues for a selected object
