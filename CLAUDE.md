@@ -30,8 +30,8 @@ projection and sky-rendering ideas.
 | `src/zenith-screen/view/attachPlanetariumInteraction.ts` | Drag / keyboard pan + Ctrl-time + wheel FOV |
 | `src/zenith-screen/model/BrightStarCatalog.ts` | ~4103-star RA/Dec/mag catalog |
 | `src/zenith-screen/model/SolarSystemBodies.ts` | Planet display metadata (`planets.ini`) |
-| `src/common/sky/SkyCoordinates.ts` | Equatorial ↔ horizontal transforms |
-| `src/common/sky/PlanetEphemeris.ts` | `astronomy-engine` ephemeris wrapper |
+| `src/common/sky/SkyCoordinates.ts` | Equatorial ↔ horizontal transforms (intentionally hand-rolled; see [doc/astronomy-engine.md](doc/astronomy-engine.md)) |
+| `src/common/sky/PlanetEphemeris.ts` | The only `astronomy-engine` import boundary — ephemerides, sidereal time, illumination, Moon phase |
 | `src/zenith-screen/view/ZenithScreenSummaryContent.ts` | Accessible screen summary (reference a11y pattern) |
 | `src/zenith-screen/view/ZenithKeyboardHelpContent.ts` | Keyboard-help dialog content |
 | `src/common/ZenithHotkeyData.ts` | Planetarium HotkeyData (listeners + help dialog) |

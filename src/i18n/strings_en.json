@@ -208,6 +208,14 @@
     "showConstellations": "Show constellations",
     "selectedNone": "Click a star or planet (N / P to cycle)",
     "selectedObject": "{{name}}",
+    "selectedType": "Type: {{type}}",
+    "selectedConstellation": "Constellation: {{constellation}}",
+    "selectedElongation": "Elongation: {{deg}}° {{dir}}",
+    "typeStar": "Star",
+    "typePlanet": "Planet",
+    "typeMoon": "Moon",
+    "elongationEast": "East",
+    "elongationWest": "West",
     "selectedMag": "mag {{mag}}",
     "selectedEquatorial": "RA {{ra}} h, Dec {{dec}}°",
     "selectedHorizontal": "alt {{alt}}°, az {{az}}°",
@@ -221,7 +229,11 @@
     "showCelestialEquator": "Show celestial equator",
     "showObjectPath": "Show selected object path",
     "measureSeparation": "{{deg}}°",
-    "onscreenHint": "Drag to look · click to identify · Shift-click to measure · scroll to zoom · ? for help"
+    "onscreenHint": "Drag to look · click to identify · Shift-click to measure · scroll to zoom · ? for help",
+    "searchPlaceholder": "Find a star or planet…",
+    "searchAccessibleName": "Search the sky by name",
+    "searchAccessibleHelp": "Type a name, then press up or down to highlight a match and Enter to select and track it. Escape clears the query.",
+    "searchNoMatches": "No matches"
   },
   "a11y": {
     "screenSummary": {
@@ -240,6 +252,7 @@
     "measureFirstPoint": "First measurement point set. Shift-click a second point to measure the angle between them.",
     "measureResult": "Angular separation {{deg}} degrees.",
     "measureCleared": "Measurement cleared.",
+    "searchSelectedAndTracking": "Selected and tracking {{name}}.",
     "controls": {
       "skyView": "Planetarium sky view",
       "skyViewHelp": "Arrow keys pan the view. Hold Control with arrows to advance civil time. J, K, and L slow, reset, and speed up the time rate. Plus and minus zoom in and out. Shift plus N, S, E, W, or Z looks toward north, south, east, west, or the zenith. N and P cycle through stars and planets in view. T tracks the selected object as time passes. Escape clears the selection. The wheel changes field of view. Click a star or planet to select it.",
@@ -298,7 +311,8 @@
       "showObjectPath": "Show the daily path of the selected object across the sky",
       "trackSelected": "Track the selected object, keeping it centered as time passes",
       "measureTool": "Angular distance tool",
-      "measureToolHelp": "Click two points or objects to measure the angle between them. Click empty sky to clear."
+      "measureToolHelp": "Click two points or objects to measure the angle between them. Click empty sky to clear.",
+      "infoButton": "Info — how to use this simulation"
     }
   },
   "keyboardHelp": {
@@ -361,5 +375,15 @@
     "showConstellations": "Show constellation lines",
     "showPlanetLabels": "Show planet names",
     "deepStarCatalog": "Deeper star catalog (fainter stars to mag 7.5)"
+  },
+  "info": {
+    "title": "How to use",
+    "intro": "This is a first-person view of the night sky. Set where and when you are observing, then look around and explore.",
+    "locationTip": "<b>Set your location.</b> Use the Observer location panel to drag the map pin or type a latitude and longitude — or press \"Use my location\".",
+    "timeTip": "<b>Set the date and time.</b> Use the Time panel to jump to \"Now\", step forward or back a sidereal day, or press play and change the rate to watch the sky turn.",
+    "lookTip": "<b>Look around.</b> Drag the sky to pan your view, or use the arrow keys. Look toward a cardinal direction to reorient.",
+    "zoomTip": "<b>Zoom in and out.</b> Scroll the mouse wheel or change the Field of view to see a wider or narrower patch of sky.",
+    "searchTip": "<b>Find an object.</b> Type a star or planet name in the search box at the top, then press Enter to select and track it.",
+    "displayTip": "<b>Show more or less.</b> Use the Display panel to toggle grids, cardinal directions, the meridian, and how faint a star can be before it is hidden."
   }
 }

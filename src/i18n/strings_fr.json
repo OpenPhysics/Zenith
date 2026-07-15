@@ -208,6 +208,14 @@
     "showConstellations": "Afficher les constellations",
     "selectedNone": "Cliquez une étoile ou planète (N / P pour parcourir)",
     "selectedObject": "{{name}}",
+    "selectedType": "Type : {{type}}",
+    "selectedConstellation": "Constellation : {{constellation}}",
+    "selectedElongation": "Élongation : {{deg}}° {{dir}}",
+    "typeStar": "Étoile",
+    "typePlanet": "Planète",
+    "typeMoon": "Lune",
+    "elongationEast": "Est",
+    "elongationWest": "Ouest",
     "selectedMag": "mag {{mag}}",
     "selectedEquatorial": "AD {{ra}} h, Déc {{dec}}°",
     "selectedHorizontal": "alt {{alt}}°, az {{az}}°",
@@ -221,7 +229,11 @@
     "showCelestialEquator": "Afficher l'équateur céleste",
     "showObjectPath": "Afficher la trajectoire de l'objet",
     "measureSeparation": "{{deg}}°",
-    "onscreenHint": "Glisser pour regarder · cliquer pour identifier · Maj-clic pour mesurer · molette pour zoomer · ? pour l'aide"
+    "onscreenHint": "Glisser pour regarder · cliquer pour identifier · Maj-clic pour mesurer · molette pour zoomer · ? pour l'aide",
+    "searchPlaceholder": "Rechercher une étoile ou planète…",
+    "searchAccessibleName": "Rechercher dans le ciel par nom",
+    "searchAccessibleHelp": "Saisissez un nom, puis flèche haut ou bas pour surligner un résultat et Entrée pour le sélectionner et le suivre. Échap efface la recherche.",
+    "searchNoMatches": "Aucun résultat"
   },
   "a11y": {
     "screenSummary": {
@@ -240,6 +252,7 @@
     "measureFirstPoint": "Premier point de mesure défini. Maj-cliquez un deuxième point pour mesurer l'angle entre eux.",
     "measureResult": "Séparation angulaire {{deg}} degrés.",
     "measureCleared": "Mesure effacée.",
+    "searchSelectedAndTracking": "Sélection et suivi de {{name}}.",
     "controls": {
       "skyView": "Vue du ciel planétarium",
       "skyViewHelp": "Les flèches font pivoter la vue. Maintenez Contrôle avec les flèches pour avancer le temps civil. J, K et L ralentissent, réinitialisent et accélèrent le temps. Plus et moins zooment. Shift plus N, S, E, W ou Z regarde vers le nord, le sud, l'est, l'ouest ou le zénith. N et P parcourent les étoiles et planètes visibles. T suit l'objet sélectionné au fil du temps. Échap efface la sélection. La molette change le champ de vision. Cliquez une étoile ou planète pour la sélectionner.",
@@ -298,7 +311,8 @@
       "showObjectPath": "Afficher la trajectoire diurne de l'objet sélectionné",
       "trackSelected": "Suivre l'objet sélectionné en le gardant centré au fil du temps",
       "measureTool": "Outil de distance angulaire",
-      "measureToolHelp": "Cliquez deux points ou objets pour mesurer l'angle entre eux. Cliquez le ciel vide pour effacer."
+      "measureToolHelp": "Cliquez deux points ou objets pour mesurer l'angle entre eux. Cliquez le ciel vide pour effacer.",
+      "infoButton": "Info — how to use this simulation"
     }
   },
   "keyboardHelp": {
@@ -361,5 +375,15 @@
     "showConstellations": "Afficher les lignes de constellations",
     "showPlanetLabels": "Afficher les noms des planètes",
     "deepStarCatalog": "Catalogue d'étoiles plus profond (étoiles plus faibles jusqu'à mag 7.5)"
+  },
+  "info": {
+    "title": "How to use",
+    "intro": "This is a first-person view of the night sky. Set where and when you are observing, then look around and explore.",
+    "locationTip": "<b>Set your location.</b> Use the Observer location panel to drag the map pin or type a latitude and longitude — or press \"Use my location\".",
+    "timeTip": "<b>Set the date and time.</b> Use the Time panel to jump to \"Now\", step forward or back a sidereal day, or press play and change the rate to watch the sky turn.",
+    "lookTip": "<b>Look around.</b> Drag the sky to pan your view, or use the arrow keys. Look toward a cardinal direction to reorient.",
+    "zoomTip": "<b>Zoom in and out.</b> Scroll the mouse wheel or change the Field of view to see a wider or narrower patch of sky.",
+    "searchTip": "<b>Find an object.</b> Type a star or planet name in the search box at the top, then press Enter to select and track it.",
+    "displayTip": "<b>Show more or less.</b> Use the Display panel to toggle grids, cardinal directions, the meridian, and how faint a star can be before it is hidden."
   }
 }

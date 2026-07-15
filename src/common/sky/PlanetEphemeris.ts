@@ -20,6 +20,8 @@
 
 import {
   Body,
+  Constellation,
+  Elongation,
   Equator,
   Illumination,
   KM_PER_AU,
@@ -161,6 +163,58 @@ export const moonPhaseState = (civilTimeMs: number): MoonPhaseState => {
     phaseAngleDeg: illumination.phase_angle,
     // MoonPhase: 0 = new, 90 = first quarter, 180 = full, 270 = third quarter.
     waxing: elongationDeg < 180,
+  };
+};
+
+/**
+ * astronomy-engine returns three constellation names that differ from the IAU
+ * spelling used as keys in the `constellations` string group. Map them back.
+ */
+const CONSTELLATION_KEY_OVERRIDES: Record<string, string> = {
+  Antila: "antlia",
+  Camelopardis: "camelopardalis",
+  "Pisces Austrinus": "piscisAustrinus",
+};
+
+/**
+ * IAU constellation containing a J2000 equatorial point, returned as the
+ * camelCase key into the `constellations` string group (e.g. "ursaMajor") plus
+ * astronomy-engine's English name as a fallback for any unmapped key.
+ */
+export const constellationAt = (raHours: number, decDeg: number): { key: string; name: string } => {
+  const name = Constellation(raHours, decDeg).name;
+  const key =
+    CONSTELLATION_KEY_OVERRIDES[name] ??
+    name
+      .split(" ")
+      .map((word, index) =>
+        index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+      )
+      .join("");
+  return { key, name };
+};
+
+/** Solar elongation of a body: angular distance from the Sun plus its side. */
+export type ElongationState = {
+  /** Angular separation from the Sun in degrees, [0, 180]. */
+  elongationDeg: number;
+  /** "east" when the body trails the Sun (evening sky); "west" leads it (morning sky). */
+  direction: "east" | "west";
+};
+
+/**
+ * Solar elongation of a body as seen from Earth. Null for the Sun (its
+ * elongation from itself is undefined). astronomy-engine reports "evening"
+ * visibility for a body east of the Sun and "morning" for one to the west.
+ */
+export const bodyElongation = (bodyId: PlanetBodyId, civilTimeMs: number): ElongationState | null => {
+  if (bodyId === "sun") {
+    return null;
+  }
+  const event = Elongation(BODY_MAP[bodyId], MakeTime(new Date(civilTimeMs)));
+  return {
+    elongationDeg: event.elongation,
+    direction: event.visibility === "evening" ? "east" : "west",
   };
 };
 

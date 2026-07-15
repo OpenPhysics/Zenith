@@ -159,6 +159,10 @@ off keeps a night sky with stars fully visible.
 | `SolarSystemBodies.ts` | Display metadata (color, exaggerated disc clamps, physical radius) from `planets.ini` |
 
 Shared transform: `equatorialToHorizontal` in `src/common/sky/SkyCoordinates.ts`.
+`PlanetEphemeris.ts` is the only `astronomy-engine` import boundary; the rest of
+`src/common/sky/` is intentionally hand-rolled for per-frame throughput and J2000
+frame consistency — see [astronomy-engine.md](./astronomy-engine.md) before
+refactoring it to "just use the library."
 
 ---
 

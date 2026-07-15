@@ -2,15 +2,23 @@
  * SelectedObjectReadout.ts
  *
  * Compact control-panel readout for the currently selected named star or planet:
- * name, magnitude, equatorial, and horizontal coordinates.
+ * name, type, constellation, magnitude, equatorial + horizontal coordinates,
+ * solar elongation (planets), and rise / set / transit times.
  */
 
-import { DerivedProperty, Multilink, PatternStringProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
+import {
+  DerivedProperty,
+  DynamicProperty,
+  Multilink,
+  PatternStringProperty,
+  Property,
+  type TReadOnlyProperty,
+} from "scenerystack/axon";
 import { Node, Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
 import { Checkbox } from "scenerystack/sun";
 import { formatLocalSolarTime } from "../../common/sky/civilDateTime.js";
-import type { PlanetBodyId } from "../../common/sky/PlanetEphemeris.js";
+import { bodyElongation, constellationAt, type PlanetBodyId } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal, riseSetInfo, solarHoursUntilLst } from "../../common/sky/SkyCoordinates.js";
 import { ZENITH_CHECKBOX_OPTIONS } from "../../common/ZenithControlOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
@@ -226,6 +234,68 @@ export class SelectedObjectReadout extends Node {
     const altProperty = new DerivedProperty([coordsProperty], (s) => (s.kind === "none" ? "—" : formatDeg(s.altDeg)));
     const azProperty = new DerivedProperty([coordsProperty], (s) => (s.kind === "none" ? "—" : formatDeg(s.azDeg)));
 
+    // Type: the Sun is a star, the Moon its own kind, everything else a planet.
+    const typeNameProperty = new DerivedProperty(
+      [
+        model.selectedObjectProperty,
+        controls.typeStarStringProperty,
+        controls.typePlanetStringProperty,
+        controls.typeMoonStringProperty,
+      ],
+      (selected, starLabel, planetLabel, moonLabel) => {
+        if (!selected) {
+          return "";
+        }
+        if (selected.kind === "star" || selected.id === "sun") {
+          return starLabel;
+        }
+        if (selected.id === "moon") {
+          return moonLabel;
+        }
+        return planetLabel;
+      },
+    );
+
+    // Constellation of the current position, localized via the `constellations`
+    // string group. Planets drift between constellations as time advances, so
+    // this re-resolves from the live equatorial coordinates.
+    const constellations = stringManager.getConstellations();
+    const constellationSourceProperty = new DerivedProperty([coordsProperty], (s): TReadOnlyProperty<string> => {
+      if (s.kind === "none") {
+        return controls.selectedNoneStringProperty; // hidden while unselected; harmless placeholder
+      }
+      const { key, name } = constellationAt(s.raHours, s.decDeg);
+      const localized = constellations[`${key}StringProperty` as keyof typeof constellations] as
+        | TReadOnlyProperty<string>
+        | undefined;
+      return localized ?? new Property(name);
+    });
+    const constellationNameProperty = new DynamicProperty(constellationSourceProperty);
+
+    // Elongation from the Sun (planets only, not the Sun itself). East = evening
+    // side of the Sun, West = morning side, in place of a signed angle.
+    const elongationProperty = new DerivedProperty(
+      [
+        model.selectedObjectProperty,
+        model.skySnapshotProperty,
+        model.civilTimeMsProperty,
+        controls.elongationEastStringProperty,
+        controls.elongationWestStringProperty,
+      ],
+      (selected, _snapshot, civilMs, eastLabel, westLabel) => {
+        if (!selected || selected.kind !== "planet") {
+          return null;
+        }
+        const elong = bodyElongation(selected.id, civilMs);
+        if (!elong) {
+          return null;
+        }
+        return { deg: formatDeg(elong.elongationDeg), dir: elong.direction === "east" ? eastLabel : westLabel };
+      },
+    );
+    const elongDegProperty = new DerivedProperty([elongationProperty], (e) => (e ? e.deg : "—"));
+    const elongDirProperty = new DerivedProperty([elongationProperty], (e) => (e ? e.dir : ""));
+
     const nameText = new Text(
       new PatternStringProperty(controls.selectedObjectStringProperty, { name: nameProperty }),
       { font: labelFont, fill: ZenithColors.accentColorProperty, maxWidth },
@@ -251,6 +321,27 @@ export class SelectedObjectReadout extends Node {
       new PatternStringProperty(controls.selectedHorizontalStringProperty, {
         alt: altProperty,
         az: azProperty,
+      }),
+      { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
+    );
+    const typeText = new Text(
+      new PatternStringProperty(controls.selectedTypeStringProperty, { type: typeNameProperty }),
+      {
+        font: labelFont,
+        fill: ZenithColors.textColorProperty,
+        maxWidth,
+      },
+    );
+    const constellationText = new Text(
+      new PatternStringProperty(controls.selectedConstellationStringProperty, {
+        constellation: constellationNameProperty,
+      }),
+      { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
+    );
+    const elongationText = new Text(
+      new PatternStringProperty(controls.selectedElongationStringProperty, {
+        deg: elongDegProperty,
+        dir: elongDirProperty,
       }),
       { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
     );
@@ -318,9 +409,16 @@ export class SelectedObjectReadout extends Node {
       const hasSelection = coords.kind !== "none";
       noneText.visible = !hasSelection;
       nameText.visible = hasSelection;
+      typeText.visible = hasSelection;
+      constellationText.visible = hasSelection;
       magText.visible = hasSelection;
       eqText.visible = hasSelection;
       hzText.visible = hasSelection;
+    });
+
+    // Elongation only applies to planets (and the Moon), never a bare star or the Sun.
+    elongationProperty.link((elong) => {
+      elongationText.visible = elong !== null;
     });
 
     // ── Track toggle (enabled only when an object is selected) ────────────────
@@ -345,9 +443,12 @@ export class SelectedObjectReadout extends Node {
         children: [
           noneText,
           nameText,
+          typeText,
+          constellationText,
           magText,
           eqText,
           hzText,
+          elongationText,
           transitText,
           riseText,
           setText,

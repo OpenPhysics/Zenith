@@ -7,9 +7,9 @@
 
 import { BooleanProperty, PatternStringProperty } from "scenerystack/axon";
 import { GridBox, HBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
-import { NumberControl, PhetFont, ResetAllButton } from "scenerystack/scenery-phet";
+import { InfoButton, NumberControl, PhetFont, ResetAllButton } from "scenerystack/scenery-phet";
 import type { ScreenViewOptions } from "scenerystack/sim";
-import { ScreenView } from "scenerystack/sim";
+import { Dialog, ScreenView } from "scenerystack/sim";
 import { AccordionBox, Checkbox, ComboBox, RectangularPushButton } from "scenerystack/sun";
 import { resolveObserverLocation } from "../../common/resolveObserverLocation.js";
 import {
@@ -39,10 +39,12 @@ import ZenithColors from "../../ZenithColors.js";
 import { LocationPreset } from "../model/LocationPreset.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import { attachPlanetariumInteraction } from "./attachPlanetariumInteraction.js";
+import { ObjectNameSearch } from "./ObjectNameSearch.js";
 import { ObserverLocationNode } from "./ObserverLocationNode.js";
 import { PlanetariumSkyNode } from "./PlanetariumSkyNode.js";
 import { SelectedObjectReadout } from "./SelectedObjectReadout.js";
 import { TimeControlPanel } from "./TimeControlPanel.js";
+import { ZenithInfoDialogContent } from "./ZenithInfoDialogContent.js";
 import { ZenithScreenSummaryContent } from "./ZenithScreenSummaryContent.js";
 
 /** Gap between the control panel and Reset All when they would overlap. */
@@ -60,6 +62,7 @@ const SELECTION_PANEL_BOTTOM_CLEARANCE = 52;
 export class ZenithScreenView extends ScreenView {
   private readonly model: ZenithModel;
   private readonly skyNode: PlanetariumSkyNode;
+  private readonly searchNode: ObjectNameSearch;
   private readonly controlPanel: AccordionBox;
   private readonly timePanel: TimeControlPanel;
   private readonly locationPanel: AccordionBox;
@@ -426,10 +429,14 @@ export class ZenithScreenView extends ScreenView {
     });
     this.addChild(onscreenHint);
 
+    // Type-ahead name search (top-center overlay) — selects and tracks on Enter.
+    this.searchNode = new ObjectNameSearch(model);
+
     // Panels and Reset All sit above the sky so they remain interactive.
     this.addChild(this.locationPanel);
     this.addChild(this.timePanel);
     this.addChild(this.controlPanel);
+    this.addChild(this.searchNode);
 
     const resetAllButton = new ResetAllButton({
       ...FLAT_RESET_ALL_BUTTON_OPTIONS,
@@ -439,6 +446,30 @@ export class ZenithScreenView extends ScreenView {
       },
     });
     this.addChild(resetAllButton);
+
+    // Info button (next to Reset All) opens a "how to use" dialog. The dialog is
+    // built lazily on first press so it costs nothing until the user asks for it.
+    const infoStrings = stringManager.getInfoStrings();
+    let infoDialog: Dialog | null = null;
+    const infoButton = new InfoButton({
+      ...FLAT_RESET_ALL_BUTTON_OPTIONS,
+      // InfoButton renders larger than Reset All by default; shrink it to sit
+      // comfortably beside it (~40% smaller).
+      scale: 0.6,
+      accessibleName: a11y.controls.infoButtonStringProperty,
+      listener: () => {
+        if (infoDialog === null) {
+          infoDialog = new Dialog(new ZenithInfoDialogContent(), {
+            title: new Text(infoStrings.titleStringProperty, {
+              font: new PhetFont({ size: PANEL_TITLE_FONT_SIZE, weight: "bold" }),
+              fill: LIGHT_SURFACE_TEXT_FILL,
+            }),
+          });
+        }
+        infoDialog.show();
+      },
+    });
+    this.addChild(infoButton);
 
     const updateChromeLayout = (): void => {
       const visibleBounds = this.visibleBoundsProperty.value;
@@ -459,6 +490,10 @@ export class ZenithScreenView extends ScreenView {
       this.controlPanel.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
       this.controlPanel.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
 
+      // Name search floats at top-center (grows downward as the user types).
+      this.searchNode.centerX = visibleBounds.centerX;
+      this.searchNode.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
+
       selectionPanel.left = visibleBounds.minX + SELECTION_PANEL_INSET;
       selectionPanel.bottom = safeBottom - SELECTION_PANEL_BOTTOM_CLEARANCE;
 
@@ -467,6 +502,10 @@ export class ZenithScreenView extends ScreenView {
       if (resetAllButton.top < this.controlPanel.bottom + RESET_ALL_PANEL_GAP) {
         resetAllButton.top = this.controlPanel.bottom + RESET_ALL_PANEL_GAP;
       }
+
+      // Info button sits just to the left of Reset All, vertically centered on it.
+      infoButton.right = resetAllButton.left - RESET_ALL_PANEL_GAP;
+      infoButton.centerY = resetAllButton.centerY;
 
       onscreenHint.centerX = visibleBounds.centerX;
       onscreenHint.bottom = safeBottom - SELECTION_PANEL_INSET;
@@ -483,6 +522,8 @@ export class ZenithScreenView extends ScreenView {
     this.locationPanel.boundsProperty.lazyLink(updateChromeLayout);
     this.timePanel.boundsProperty.lazyLink(updateChromeLayout);
     this.controlPanel.boundsProperty.lazyLink(updateChromeLayout);
+    // The search overlay grows downward as results appear; keep it top-centered.
+    this.searchNode.boundsProperty.lazyLink(updateChromeLayout);
     // Re-anchor the selection readout's bottom when its content grows (e.g. when
     // an object is selected and more rows appear) so it grows upward, not under
     // the navigation bar.
@@ -492,7 +533,15 @@ export class ZenithScreenView extends ScreenView {
     // AccordionBox owns PDOM order for its content; include the box as a whole.
     this.addChild(
       new Node({
-        pdomOrder: [this.skyNode, this.locationPanel, this.timePanel, this.controlPanel, resetAllButton],
+        pdomOrder: [
+          this.skyNode,
+          this.searchNode,
+          this.locationPanel,
+          this.timePanel,
+          this.controlPanel,
+          infoButton,
+          resetAllButton,
+        ],
       }),
     );
   }

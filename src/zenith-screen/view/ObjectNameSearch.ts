@@ -1,0 +1,253 @@
+/**
+ * ObjectNameSearch.ts
+ *
+ * Type-ahead search box for named bright stars and solar-system bodies. Typing
+ * filters the 47 named objects (38 stars + 9 bodies) by localized name or id;
+ * Up/Down moves the highlight, Enter selects the match and enables tracking,
+ * Escape clears. Clicking a row selects it too.
+ *
+ * Built from SceneryStack primitives (no DOM `<input>` in the bundled stack):
+ * a focusable `div` peer carries a `KeyboardListener`, and the field/results are
+ * ordinary canvas nodes themed via `ZenithColors`. Ranking logic lives in
+ * `objectSearch.ts` so it can be unit-tested without Scenery.
+ */
+
+import { DerivedProperty, Multilink, PatternStringProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
+import type { OneKeyStroke } from "scenerystack/scenery";
+import { KeyboardListener, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
+import { PhetFont } from "scenerystack/scenery-phet";
+import { LIGHT_SURFACE_TEXT_FILL } from "../../common/SimButtonOptions.js";
+import { SimPanel } from "../../common/SimPanel.js";
+import { StringManager } from "../../i18n/StringManager.js";
+import { CONTROL_FONT_SIZE, PANEL_CONTENT_SPACING } from "../../SimConstants.js";
+import ZenithColors from "../../ZenithColors.js";
+import { NAMED_BRIGHT_STARS } from "../model/NamedBrightStars.js";
+import { rankObjects } from "../model/objectSearch.js";
+import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
+import { SOLAR_SYSTEM_BODIES } from "../model/SolarSystemBodies.js";
+import type { ZenithModel } from "../model/ZenithModel.js";
+
+/** Single-key strokes the field reacts to. Letters register both plain and
+ *  Shifted so typing works regardless of Shift / Caps Lock state. */
+const LETTERS = "abcdefghijklmnopqrstuvwxyz".split("");
+const TYPING_KEYS = [
+  ...LETTERS,
+  ...LETTERS.map((letter) => `shift+${letter}`),
+  "backspace",
+  "enter",
+  "escape",
+  "arrowUp",
+  "arrowDown",
+] as OneKeyStroke[];
+
+const MAX_RESULTS = 8;
+const FIELD_WIDTH = 224;
+const FIELD_HEIGHT = 26;
+const ROW_WIDTH = FIELD_WIDTH;
+const ROW_HEIGHT = 20;
+
+type Entry = {
+  readonly selected: SelectedSkyObject;
+  readonly nameProperty: TReadOnlyProperty<string>;
+};
+
+export class ObjectNameSearch extends Node {
+  public constructor(model: ZenithModel) {
+    const stringManager = StringManager.getInstance();
+    const controls = stringManager.getControls();
+    const a11y = stringManager.getA11yStrings();
+    const bodies = stringManager.getBodies();
+    const stars = stringManager.getStars();
+
+    const entries: Entry[] = [
+      ...NAMED_BRIGHT_STARS.map((star) => ({
+        selected: {
+          kind: "star",
+          id: star.id,
+          raHours: star.raHours,
+          decDeg: star.decDeg,
+          mag: star.mag,
+        } satisfies SelectedSkyObject,
+        nameProperty: stars[`${star.id}StringProperty` as keyof typeof stars] as TReadOnlyProperty<string>,
+      })),
+      ...SOLAR_SYSTEM_BODIES.map((body) => ({
+        selected: { kind: "planet", id: body.id } satisfies SelectedSkyObject,
+        nameProperty: bodies[`${body.id}StringProperty` as keyof typeof bodies] as TReadOnlyProperty<string>,
+      })),
+    ];
+
+    const queryProperty = new Property("");
+    const focusedProperty = new Property(false);
+    const highlightIndexProperty = new Property(0);
+
+    // Re-rank whenever the query changes. A locale swap re-reads names, so bump
+    // a tick from any name property change (they all flip together on locale).
+    const localeTickProperty = new Property(0);
+    for (const entry of entries) {
+      entry.nameProperty.lazyLink(() => {
+        localeTickProperty.value++;
+      });
+    }
+    const matchesProperty = new DerivedProperty([queryProperty, localeTickProperty], (query) => {
+      const searchEntries = entries.map((entry) => ({ id: entry.selected.id, name: entry.nameProperty.value }));
+      return rankObjects(query, searchEntries, MAX_RESULTS)
+        .map((ranked) => entries.find((entry) => entry.selected.id === ranked.id))
+        .filter((entry): entry is Entry => entry !== undefined);
+    });
+
+    const choose = (entry: Entry): void => {
+      model.selectedObjectProperty.value = entry.selected;
+      model.trackSelectedObjectProperty.value = true;
+      this.addAccessibleResponse(
+        new PatternStringProperty(a11y.searchSelectedAndTrackingStringProperty, { name: entry.nameProperty }),
+      );
+      queryProperty.value = "";
+      highlightIndexProperty.value = 0;
+    };
+
+    // Keep the highlight within range as the result set shrinks.
+    matchesProperty.link((matches) => {
+      if (highlightIndexProperty.value > matches.length - 1) {
+        highlightIndexProperty.value = Math.max(0, matches.length - 1);
+      }
+    });
+
+    // ── Field ──────────────────────────────────────────────────────────────────
+    const fieldFont = new PhetFont(CONTROL_FONT_SIZE);
+    const fieldStrokeProperty = new DerivedProperty(
+      [focusedProperty, ZenithColors.accentColorProperty, ZenithColors.panelBorderColorProperty],
+      (isFocused, accent, border) => (isFocused ? accent : border),
+    );
+    const fieldRect = new Rectangle(0, 0, FIELD_WIDTH, FIELD_HEIGHT, {
+      cornerRadius: 4,
+      fill: ZenithColors.controlSurfaceColorProperty,
+      stroke: fieldStrokeProperty,
+      lineWidth: 1.5,
+    });
+
+    const fieldText = new Text(
+      new DerivedProperty([queryProperty, controls.searchPlaceholderStringProperty], (q, placeholder) =>
+        q.length === 0 ? placeholder : q,
+      ),
+      { font: fieldFont, fill: LIGHT_SURFACE_TEXT_FILL, maxWidth: FIELD_WIDTH - 22 },
+    );
+    fieldText.left = 10;
+    fieldText.centerY = FIELD_HEIGHT / 2;
+    fieldText.opacity = 0.5;
+    queryProperty.lazyLink((q) => {
+      fieldText.opacity = q.length === 0 ? 0.5 : 1;
+    });
+
+    const caret = new Rectangle(0, 0, 1.5, FIELD_HEIGHT - 12, { fill: LIGHT_SURFACE_TEXT_FILL, cornerRadius: 0.75 });
+    caret.visible = false;
+    const positionCaret = (): void => {
+      caret.left = fieldText.right + 2;
+      caret.centerY = FIELD_HEIGHT / 2;
+    };
+    positionCaret();
+    fieldText.boundsProperty.lazyLink(positionCaret);
+
+    const fieldNode = new Node({ cursor: "text", children: [fieldRect, fieldText, caret] });
+
+    // ── Result rows ─────────────────────────────────────────────────────────────
+    const rowFont = new PhetFont(CONTROL_FONT_SIZE);
+    const createRow = (entry: Entry, active: boolean): Node => {
+      const background = new Rectangle(0, 0, ROW_WIDTH, ROW_HEIGHT, {
+        cornerRadius: 3,
+        fill: active ? ZenithColors.accentColorProperty : "rgba(0,0,0,0)",
+      });
+      const label = new Text(entry.nameProperty, {
+        font: rowFont,
+        fill: active ? ZenithColors.controlSurfaceColorProperty : LIGHT_SURFACE_TEXT_FILL,
+        maxWidth: ROW_WIDTH - 12,
+      });
+      label.left = 6;
+      label.centerY = ROW_HEIGHT / 2;
+      const row = new Node({ cursor: "pointer", children: [background, label] });
+      row.addInputListener({ down: () => choose(entry) });
+      return row;
+    };
+
+    const resultsBox = new VBox({ spacing: 1, align: "left" });
+    Multilink.multilink([matchesProperty, highlightIndexProperty], (matches, highlight) =>
+      resultsBox.setChildren(matches.map((entry, i) => createRow(entry, i === highlight))),
+    );
+
+    // ── "No matches" line + list visibility ────────────────────────────────────
+    const statusText = new Text(controls.searchNoMatchesStringProperty, {
+      font: rowFont,
+      fill: LIGHT_SURFACE_TEXT_FILL,
+      maxWidth: FIELD_WIDTH,
+    });
+    Multilink.multilink([focusedProperty, queryProperty, matchesProperty], (isFocused, q, matches) => {
+      resultsBox.visible = isFocused || q.length > 0;
+      statusText.visible = isFocused && q.length > 0 && matches.length === 0;
+    });
+
+    // Caret follows focus.
+    focusedProperty.lazyLink((isFocused) => {
+      caret.visible = isFocused;
+    });
+
+    const panel = new SimPanel(
+      new VBox({ spacing: PANEL_CONTENT_SPACING, align: "left", children: [fieldNode, resultsBox, statusText] }),
+      {
+        xMargin: 8,
+        yMargin: 6,
+      },
+    );
+
+    super({
+      tagName: "div",
+      focusable: true,
+      accessibleName: controls.searchAccessibleNameStringProperty,
+      accessibleHelpText: controls.searchAccessibleHelpStringProperty,
+      children: [panel],
+    });
+
+    // A pointer press on the field focuses the box so mouse users can type; that
+    // focus also reveals the browsable result list (rows show while focused).
+    fieldNode.addInputListener({ down: () => this.focus() });
+
+    this.addInputListener(
+      new KeyboardListener({
+        keys: TYPING_KEYS,
+        fire: (_event, keysPressed) => {
+          const matches = matchesProperty.value;
+          if (keysPressed === "backspace") {
+            queryProperty.value = queryProperty.value.slice(0, -1);
+            highlightIndexProperty.value = 0;
+          } else if (keysPressed === "escape") {
+            queryProperty.value = "";
+            highlightIndexProperty.value = 0;
+          } else if (keysPressed === "enter") {
+            const entry = matches[highlightIndexProperty.value];
+            if (entry) {
+              choose(entry);
+            }
+          } else if (keysPressed === "arrowUp") {
+            if (matches.length > 0) {
+              highlightIndexProperty.value = (highlightIndexProperty.value - 1 + matches.length) % matches.length;
+            }
+          } else if (keysPressed === "arrowDown") {
+            if (matches.length > 0) {
+              highlightIndexProperty.value = (highlightIndexProperty.value + 1) % matches.length;
+            }
+          } else {
+            const letter = keysPressed.split("+").pop();
+            if (letter && letter.length === 1) {
+              queryProperty.value += letter;
+              highlightIndexProperty.value = 0;
+            }
+          }
+        },
+        focus: () => {
+          focusedProperty.value = true;
+        },
+        blur: () => {
+          focusedProperty.value = false;
+        },
+      }),
+    );
+  }
+}

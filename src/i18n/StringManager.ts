@@ -55,6 +55,10 @@ export class StringManager {
     return stringProperties.keyboardHelp;
   }
 
+  public getInfoStrings() {
+    return stringProperties.info;
+  }
+
   public getPreferences() {
     return stringProperties.preferences;
   }
