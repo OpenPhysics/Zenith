@@ -150,7 +150,7 @@ export const LOOK_ALTITUDE_RANGE = new Range(-90, 90);
 export const DEFAULT_FIELD_OF_VIEW_DEG = 140;
 
 /** Allowed horizontal FOV range (degrees). */
-export const FIELD_OF_VIEW_RANGE = new Range(50, 180);
+export const FIELD_OF_VIEW_RANGE = new Range(10, 180);
 
 /**
  * Sky directions farther than this from the view center (degrees) are culled;
