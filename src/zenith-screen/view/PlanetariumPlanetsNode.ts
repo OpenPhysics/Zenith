@@ -15,7 +15,7 @@ import { clamp } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { Circle, Node, Path, Text } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
-import { moonUnlitShape } from "../../common/sky/moonPhaseShape.js";
+import { discUnlitShape } from "../../common/sky/moonPhaseShape.js";
 import {
   angularDiameterToRadiusPx,
   apparentAngularDiameterDeg,
@@ -35,6 +35,25 @@ const LABEL_OFFSET_Y = -4;
 /** Magnitude treated as the faint end of planet disc scaling. */
 const PLANET_MAG_FAINT = 8;
 
+/**
+ * Bodies whose illuminated phase is worth drawing — those interior to or near
+ * Earth's orbit show an appreciable crescent/gibbous. Outer planets stay
+ * effectively full, so they get no terminator overlay.
+ */
+const PHASE_BODY_IDS: ReadonlySet<PlanetBodyId> = new Set(["moon", "mercury", "venus", "mars"]);
+
+/**
+ * In true-scale mode, planet discs are drawn this many times their real angular
+ * size. Kept small so a planet still reads as a star-like point at wide field
+ * and only resolves into a disc (with phase) as you zoom in — mimicking a
+ * telescope, since star glyphs are a fixed pixel size and never grow with zoom.
+ * Sun and Moon are already large and are never exaggerated.
+ */
+const PLANET_TRUE_SCALE_EXAGGERATION = 8;
+
+/** Cap on an exaggerated planet disc radius (px) so a near Jupiter stays sane. */
+const PLANET_MAX_TRUE_SCALE_RADIUS_PX = 48;
+
 const BODY_COLOR: Record<PlanetBodyId, typeof ZenithColors.sunColorProperty> = {
   sun: ZenithColors.sunColorProperty,
   moon: ZenithColors.moonColorProperty,
@@ -52,8 +71,8 @@ type BodyNodes = {
   /** Parent translated to the projected disc center. */
   discRoot: Node;
   disc: Circle;
-  /** Moon-only unlit terminator overlay; null for other bodies. */
-  moonShadow: Path | null;
+  /** Unlit terminator overlay for phased bodies ({@link PHASE_BODY_IDS}); null otherwise. */
+  phaseShadow: Path | null;
   label: Text;
 };
 
@@ -96,15 +115,14 @@ export class PlanetariumPlanetsNode extends Node {
         stroke: ZenithColors.horizonColorProperty,
         lineWidth: 1,
       });
-      const moonShadow =
-        visual.id === "moon"
-          ? new Path(new Shape(), {
-              fill: ZenithColors.moonShadowColorProperty,
-              pickable: false,
-            })
-          : null;
+      const phaseShadow = PHASE_BODY_IDS.has(visual.id)
+        ? new Path(new Shape(), {
+            fill: ZenithColors.moonShadowColorProperty,
+            pickable: false,
+          })
+        : null;
       const discRoot = new Node({
-        children: moonShadow ? [disc, moonShadow] : [disc],
+        children: phaseShadow ? [disc, phaseShadow] : [disc],
         visible: false,
       });
       const label = new Text(nameProperty(visual.id), {
@@ -113,7 +131,7 @@ export class PlanetariumPlanetsNode extends Node {
         visible: false,
         pickable: false,
       });
-      return { visual, discRoot, disc, moonShadow, label };
+      return { visual, discRoot, disc, phaseShadow, label };
     });
 
     this.children = this.bodyNodes.flatMap(({ discRoot, label }) => [discRoot, label]);
@@ -133,14 +151,19 @@ export class PlanetariumPlanetsNode extends Node {
     altDeg: number,
     azDeg: number,
   ): number {
-    const useAngular = visual.id === "sun" || visual.id === "moon" || this.model.trueScaleBodiesProperty.value;
+    const isSunOrMoon = visual.id === "sun" || visual.id === "moon";
+    const useAngular = isSunOrMoon || this.model.trueScaleBodiesProperty.value;
     if (useAngular) {
       const diameterDeg = apparentAngularDiameterDeg(visual.radiusKm, distAu);
-      return angularDiameterToRadiusPx(
-        diameterDeg,
+      // Exaggerate only the planets so their distance-driven size change (and
+      // phase) reads without extreme zoom; the Sun and Moon stay true angular.
+      const exaggeration = isSunOrMoon ? 1 : PLANET_TRUE_SCALE_EXAGGERATION;
+      const radius = angularDiameterToRadiusPx(
+        diameterDeg * exaggeration,
         projection.degreesPerPixelAt(altDeg, azDeg),
         visual.minDiscRadiusPx,
       );
+      return isSunOrMoon ? radius : Math.min(radius, PLANET_MAX_TRUE_SCALE_RADIUS_PX);
     }
     const t = clamp((mag - STAR_MAG_BRIGHT) / (PLANET_MAG_FAINT - STAR_MAG_BRIGHT), 0, 1);
     return visual.maxDiscRadiusPx + (visual.minDiscRadiusPx - visual.maxDiscRadiusPx) * t;
@@ -162,7 +185,9 @@ export class PlanetariumPlanetsNode extends Node {
     const snapshot = this.model.skySnapshotProperty.value;
     const phase = snapshot.moonPhase;
 
-    for (const { visual, discRoot, disc, moonShadow, label } of this.bodyNodes) {
+    const trueScale = this.model.trueScaleBodiesProperty.value;
+
+    for (const { visual, discRoot, disc, phaseShadow, label } of this.bodyNodes) {
       const state = snapshot.byId.get(visual.id);
       if (!state) {
         discRoot.visible = false;
@@ -192,9 +217,19 @@ export class PlanetariumPlanetsNode extends Node {
       discRoot.translation = point;
       discRoot.visible = true;
 
-      if (moonShadow) {
-        moonShadow.shape = moonUnlitShape(radius, phase.phaseFraction, phase.waxing);
-        moonShadow.visible = phase.phaseFraction < 1 - 1e-4;
+      if (phaseShadow) {
+        if (visual.id === "moon") {
+          // The Moon is always drawn at true angular size, so its phase always shows.
+          phaseShadow.shape = discUnlitShape(radius, phase.phaseFraction, phase.waxing);
+          phaseShadow.visible = phase.phaseFraction < 1 - 1e-4;
+        } else {
+          // Planet phases only read on the exaggerated true-scale discs.
+          const showPhase = trueScale && state.phaseFraction < 1 - 1e-4;
+          if (showPhase) {
+            phaseShadow.shape = discUnlitShape(radius, state.phaseFraction, state.litOnRight);
+          }
+          phaseShadow.visible = showPhase;
+        }
       }
 
       if (showLabels && visual.preferLabel) {

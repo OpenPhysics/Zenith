@@ -36,7 +36,7 @@ src/common/sky/EclipticCoordinates.ts  equatorial ↔ ecliptic
 src/common/sky/PlanetEphemeris.ts  astronomy-engine wrapper
 src/common/sky/SkyTwilight.ts      sky color from solar altitude
 src/common/sky/civilDateTime.ts    UTC ↔ local-solar time formatting
-src/common/sky/moonPhaseShape.ts   Moon-phase illuminated-disc glyph
+src/common/sky/moonPhaseShape.ts   Illuminated-disc terminator glyph (Moon + phased planets)
 src/zenith-screen/model/BrightStarCatalog.ts
 src/zenith-screen/model/DeepStarCatalog.ts
 src/zenith-screen/model/NamedBrightStars.ts
@@ -82,7 +82,7 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 | `showHorizonProperty` | — | Ground band + horizon line |
 | `showAtmosphereProperty` | — | Twilight sky colors + daytime star fade |
 | `showPlanetsProperty` | — | Sun / Moon / planets |
-| `trueScaleBodiesProperty` | — | Planet discs use true angular size (Sun/Moon always do) |
+| `trueScaleBodiesProperty` | — | Planet discs use (exaggerated) true angular size + inner-planet phases (Sun/Moon always true scale) |
 | `showPlanetLabelsProperty` | — | Name tags (also Preferences; survives Reset All) |
 | `showStarLabelsProperty` | — | Curated bright-star name tags (Preferences) |
 | `showConstellationsProperty` | — | Stick figures (Preferences) |
@@ -138,8 +138,12 @@ LST is `normalizeHours(SiderealTime(civil) + longitudeDeg/15)` so stars and
 planets share one clock.
 
 Sun and Moon discs are always sized from apparent angular diameter vs FOV
-(degrees → pixels). Planets stay exaggerated for visibility unless
-`trueScaleBodiesProperty` is on.
+(degrees → pixels). When `trueScaleBodiesProperty` is off, planets use
+magnitude-based (brightness) disc radii. When it is on, planets are sized from
+their real angular diameter scaled by a fixed exaggeration factor — so a disc
+visibly grows and shrinks with the body's distance to Earth — and Mercury,
+Venus, and Mars gain an illuminated-phase terminator (`discUnlitShape`). The
+Moon's phase is always drawn regardless of the setting.
 
 Sky color follows solar altitude (day → twilight → night) when atmosphere is on.
 Stars, star labels, and constellation figures fade as the Sun rises. Atmosphere
@@ -155,7 +159,7 @@ off keeps a night sky with stars fully visible.
 | `DeepStarCatalog.ts` | ~25,700 stars (mag ≤ 7.5), flat RA/Dec/mag arrays (J2000) |
 | `NamedBrightStars.ts` | Curated classroom stars for labels and selection |
 | `ConstellationLines.ts` | Stick-figure segments for all 88 IAU constellations (Stellarium western culture; HIP-keyed) |
-| `PlanetEphemeris.ts` | `astronomy-engine` wrapper: Sun, Moon, Mercury–Neptune (J2000 equatorial, mag, distance, Moon phase, angular diameter) |
+| `PlanetEphemeris.ts` | `astronomy-engine` wrapper: Sun, Moon, Mercury–Neptune (J2000 equatorial, mag, distance, per-body phase fraction + lit side, angular diameter) |
 | `SolarSystemBodies.ts` | Display metadata (color, exaggerated disc clamps, physical radius) from `planets.ini` |
 
 Shared transform: `equatorialToHorizontal` in `src/common/sky/SkyCoordinates.ts`.

@@ -302,7 +302,7 @@
       "showHorizon": "Mostrar horizonte y suelo",
       "showAtmosphere": "Mostrar colores atmosféricos del cielo y desvanecimiento diurno de estrellas",
       "showPlanets": "Mostrar Sol, Luna y planetas",
-      "trueScaleBodies": "Usar tamaños angulares reales para los discos de los planetas. El Sol y la Luna siempre están a escala real.",
+      "trueScaleBodies": "Dimensionar los discos de los planetas según su tamaño angular real (exagerado para que sea visible), de modo que crezcan y se reduzcan con la distancia, y mostrar la fase iluminada de Mercurio, Venus y Marte. El Sol y la Luna siempre están a escala real.",
       "showPlanetLabels": "Mostrar etiquetas de planetas",
       "showStarLabels": "Mostrar etiquetas de estrellas brillantes",
       "showConstellations": "Mostrar figuras de constelaciones",

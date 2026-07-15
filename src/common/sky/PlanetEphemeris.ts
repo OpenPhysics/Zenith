@@ -63,10 +63,19 @@ const BODY_MAP: Record<PlanetBodyId, Body> = {
 export type PlanetEquatorialState = {
   raHours: number;
   decDeg: number;
-  /** Visual magnitude (Illumination); Sun/Moon use typical bright values. */
+  /** Visual magnitude (Illumination); Sun uses a fixed bright value. */
   mag: number;
   /** Topocentric distance in AU (from astronomy-engine Equator). */
   distAu: number;
+  /** Illuminated fraction of the disc, [0, 1]. 1 for the Sun (always "full"). */
+  phaseFraction: number;
+  /**
+   * Screen side of the lit limb: true renders the illuminated crescent/gibbous
+   * on the right (+x). Approximated from solar elongation direction — a body
+   * east of the Sun (evening sky) shows its lit limb on the right, matching the
+   * waxing-Moon teaching convention. Not a true parallactic bright-limb angle.
+   */
+  litOnRight: boolean;
 };
 
 /**
@@ -106,19 +115,26 @@ export const planetEquatorialState = (
   const eq = Equator(body, time, observer, false, true);
 
   let mag: number;
+  let phaseFraction: number;
   if (bodyId === "sun") {
     mag = -26.74;
-  } else if (bodyId === "moon") {
-    mag = Illumination(Body.Moon, time).mag;
+    phaseFraction = 1;
   } else {
-    mag = Illumination(body, time).mag;
+    const illum = Illumination(body, time);
+    mag = illum.mag;
+    phaseFraction = illum.phase_fraction;
   }
+
+  // Lit limb faces the Sun; approximate its screen side from elongation.
+  const litOnRight = bodyId === "sun" ? true : Elongation(body, time).visibility === "evening";
 
   return {
     raHours: eq.ra,
     decDeg: eq.dec,
     mag,
     distAu: eq.dist,
+    phaseFraction,
+    litOnRight,
   };
 };
 

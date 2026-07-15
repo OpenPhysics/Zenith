@@ -126,8 +126,11 @@ Sun is highest.
 - **Constellations** — stick figures for all 88 IAU constellations (western
   culture figures).
 - **Sun, Moon, planets** — positions from solar-system ephemerides. Sun and Moon
-  discs use true angular size; planets are exaggerated unless “true-scale discs”
-  is on (otherwise they would be nearly invisible).
+  discs use true angular size. By default planets are drawn as brightness-scaled
+  dots (otherwise they would be nearly invisible); turning on “true-scale discs”
+  instead sizes them by their real angular diameter — exaggerated by a fixed
+  factor so the disc visibly grows and shrinks with distance — and adds the
+  illuminated phase of Mercury, Venus, and Mars. The Moon always shows its phase.
 
 ### Atmosphere and daylight
 
@@ -154,8 +157,9 @@ for daytime teaching demos (Stellarium-style).
    sky rotate.
 6. **Coordinate translation** — Select a bright star; read RA/Dec and alt/az,
    then turn on both grids so students see both frames at once.
-7. **Planet scale** — Toggle true-scale discs next to the Moon to discuss why
-   planets look like points to the naked eye.
+7. **Planet scale & phases** — Toggle true-scale discs to discuss why planets
+   look like points to the naked eye, then zoom in on Venus: watch its disc grow
+   and its crescent thin as it swings toward Earth (Galileo's phases of Venus).
 8. **Sidereal vs. solar day** — Select a star near transit or rising. Advance time by exactly one sidereal day ($\pm 1$ button). Note that the star returns to the exact same position in the sky, but the Sun's position and the local solar time shift.
 9. **Tracking the stars** — Select a star or planet and check the **Track selected object** box (or press **T**). Start time at a fast rate. Notice how the camera follows the object as it moves across the sky, making the horizon spin or tilt while the object remains centered.
 
@@ -181,7 +185,11 @@ Zenith is a teaching planetarium, not a full-sky survey tool:
 - No atmospheric refraction, light pollution maps, or telescope optics
 - No planetary moons, Saturn rings, eclipses, or deep-sky imagery
 - Constellation figures are cultural stick figures, not constellation boundaries
-- Planet discs may be exaggerated for visibility (unless true-scale is enabled)
+- Planet discs are always exaggerated for visibility — as brightness dots by
+  default, or as distance-proportional discs (with inner-planet phases) in
+  true-scale mode; neither is the true naked-eye angular size
+- Planet phase orientation uses a simplified lit-on-the-sunward-side convention,
+  not a true parallactic bright-limb angle
 - Time control is educational (sped-up civil hours), not a real-time clock by
   default
 

@@ -302,7 +302,7 @@
       "showHorizon": "Show horizon and ground",
       "showAtmosphere": "Show atmospheric sky colors and daytime star fade",
       "showPlanets": "Show Sun, Moon, and planets",
-      "trueScaleBodies": "Use true angular sizes for planet discs. The Sun and Moon are always true scale.",
+      "trueScaleBodies": "Size planet discs by their real angular size (exaggerated for visibility), so they grow and shrink with distance, and show the illuminated phase of Mercury, Venus, and Mars. The Sun and Moon are always true scale.",
       "showPlanetLabels": "Show planet name labels",
       "showStarLabels": "Show bright star name labels",
       "showConstellations": "Show constellation stick figures",

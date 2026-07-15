@@ -1,11 +1,11 @@
 /**
  * moonPhaseShape.ts
  *
- * Orthographic terminator geometry for the lunar disc. Pure kite Shape builder
- * used by PlanetariumPlanetsNode — no Scenery / model deps.
+ * Orthographic terminator geometry for a disc (Moon or a phased planet). Pure
+ * kite Shape builder used by PlanetariumPlanetsNode — no Scenery / model deps.
  *
- * Convention: waxing → illuminated on the right (+x); waning → on the left.
- * That matches the usual northern-hemisphere teaching diagram (not a full
+ * Convention: `litOnRight` → illuminated on the right (+x); otherwise on the
+ * left. That matches the usual northern-hemisphere teaching diagram (not a full
  * parallactic rotation of the terminator).
  */
 
@@ -13,13 +13,13 @@ import { clamp } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 
 /**
- * Unlit portion of a Moon disc centered at the origin.
+ * Unlit portion of an illuminated disc centered at the origin.
  *
  * @param radius - Disc radius in view pixels.
  * @param phaseFraction - Illuminated fraction in [0, 1] (0 = new, 1 = full).
- * @param waxing - True between new and full (lit on the right).
+ * @param litOnRight - True when the illuminated limb is on the right (+x).
  */
-export const moonUnlitShape = (radius: number, phaseFraction: number, waxing: boolean): Shape => {
+export const discUnlitShape = (radius: number, phaseFraction: number, litOnRight: boolean): Shape => {
   const fraction = clamp(phaseFraction, 0, 1);
 
   if (fraction >= 1 - 1e-4) {
@@ -29,8 +29,8 @@ export const moonUnlitShape = (radius: number, phaseFraction: number, waxing: bo
     return Shape.circle(0, 0, radius);
   }
 
-  // Dark limb is the left semicircle when waxing (lit on the right).
-  const darkIsLeft = waxing;
+  // Dark limb is the left semicircle when the lit limb is on the right.
+  const darkIsLeft = litOnRight;
 
   // Terminator is a vertical ellipse; width is 0 at quarter, radius at new/full.
   const ellipseRx = radius * Math.abs(2 * fraction - 1);

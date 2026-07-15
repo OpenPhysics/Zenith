@@ -302,7 +302,7 @@
       "showHorizon": "Afficher l'horizon et le sol",
       "showAtmosphere": "Afficher les couleurs atmosphériques du ciel et l'atténuation diurne des étoiles",
       "showPlanets": "Afficher le Soleil, la Lune et les planètes",
-      "trueScaleBodies": "Utiliser les tailles angulaires réelles pour les disques des planètes. Le Soleil et la Lune sont toujours à l'échelle réelle.",
+      "trueScaleBodies": "Dimensionner les disques des planètes selon leur taille angulaire réelle (exagérée pour la visibilité), afin qu'ils grandissent et rétrécissent avec la distance, et afficher la phase éclairée de Mercure, Vénus et Mars. Le Soleil et la Lune sont toujours à l'échelle réelle.",
       "showPlanetLabels": "Afficher les noms des planètes",
       "showStarLabels": "Afficher les noms des étoiles brillantes",
       "showConstellations": "Afficher les figures de constellations",
