@@ -255,7 +255,7 @@
     "searchSelectedAndTracking": "Seleccionado y siguiendo a {{name}}.",
     "controls": {
       "skyView": "Vista del cielo del planetario",
-      "skyViewHelp": "Las flechas desplazan la vista. Mantén Control con las flechas para avanzar el tiempo civil. J, K y L ralentizan, reinician y aceleran el tiempo. Más y menos acercan y alejan. Shift más N, S, E, W o Z mira hacia el norte, sur, este, oeste o el cenit. N y P ciclan estrellas y planetas en la vista. T sigue el objeto seleccionado a medida que pasa el tiempo. Escape borra la selección. La rueda cambia el campo de visión. Haz clic en una estrella o planeta para seleccionarla.",
+      "skyViewHelp": "Las flechas desplazan la vista y, manteniendo Control con las flechas, avanzas el tiempo civil; Escape borra la selección. Estos atajos también funcionan en cualquier parte de la simulación: J, K y L ralentizan, reinician y aceleran el tiempo; más y menos acercan y alejan; Shift más N, S, E, W o Z mira hacia el norte, sur, este, oeste o el cenit; N y P ciclan las estrellas y planetas en la vista; T sigue el objeto seleccionado a medida que pasa el tiempo; y A, G, Q, Z, E y M activan o desactivan la atmósfera, el horizonte, los puntos cardinales, la cuadrícula altacimutal, la cuadrícula ecuatorial y el meridiano. La rueda cambia el campo de visión. Haz clic en una estrella o planeta para seleccionarla.",
       "controlPanel": "Panel de visualización",
       "controlPanelExpanded": "Panel de visualización expandido.",
       "controlPanelCollapsed": "Panel de visualización plegado.",

@@ -255,7 +255,7 @@
     "searchSelectedAndTracking": "Sélection et suivi de {{name}}.",
     "controls": {
       "skyView": "Vue du ciel planétarium",
-      "skyViewHelp": "Les flèches font pivoter la vue. Maintenez Contrôle avec les flèches pour avancer le temps civil. J, K et L ralentissent, réinitialisent et accélèrent le temps. Plus et moins zooment. Shift plus N, S, E, W ou Z regarde vers le nord, le sud, l'est, l'ouest ou le zénith. N et P parcourent les étoiles et planètes visibles. T suit l'objet sélectionné au fil du temps. Échap efface la sélection. La molette change le champ de vision. Cliquez une étoile ou planète pour la sélectionner.",
+      "skyViewHelp": "Les flèches font pivoter la vue et, en maintenant Contrôle avec les flèches, vous avancez le temps civil ; Échap efface la sélection. Ces raccourcis fonctionnent aussi partout dans la simulation : J, K et L ralentissent, réinitialisent et accélèrent le temps ; plus et moins zooment ; Shift plus N, S, E, W ou Z regarde vers le nord, le sud, l'est, l'ouest ou le zénith ; N et P parcourent les étoiles et planètes visibles ; T suit l'objet sélectionné au fil du temps ; et A, G, Q, Z, E et M activent ou désactivent l'atmosphère, l'horizon, les points cardinaux, la grille altazimutale, la grille équatoriale et le méridien. La molette change le champ de vision. Cliquez sur une étoile ou une planète pour la sélectionner.",
       "controlPanel": "Panneau d'affichage",
       "controlPanelExpanded": "Panneau d'affichage développé.",
       "controlPanelCollapsed": "Panneau d'affichage replié.",

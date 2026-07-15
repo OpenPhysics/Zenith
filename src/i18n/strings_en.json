@@ -255,7 +255,7 @@
     "searchSelectedAndTracking": "Selected and tracking {{name}}.",
     "controls": {
       "skyView": "Planetarium sky view",
-      "skyViewHelp": "Arrow keys pan the view. Hold Control with arrows to advance civil time. J, K, and L slow, reset, and speed up the time rate. Plus and minus zoom in and out. Shift plus N, S, E, W, or Z looks toward north, south, east, west, or the zenith. N and P cycle through stars and planets in view. T tracks the selected object as time passes. Escape clears the selection. The wheel changes field of view. Click a star or planet to select it.",
+      "skyViewHelp": "Arrow keys pan the view, and holding Control with the arrows advances civil time; Escape clears the selection. These shortcuts also work anywhere in the simulation: J, K, and L slow, reset, and speed up the time rate; plus and minus zoom in and out; Shift plus N, S, E, W, or Z looks toward north, south, east, west, or the zenith; N and P cycle through stars and planets in view; T tracks the selected object as time passes; and A, G, Q, Z, E, and M toggle the atmosphere, horizon, cardinal directions, alt-azimuth grid, equatorial grid, and meridian. The wheel changes field of view. Click a star or planet to select it.",
       "controlPanel": "Display panel",
       "controlPanelExpanded": "Display panel expanded.",
       "controlPanelCollapsed": "Display panel collapsed.",
