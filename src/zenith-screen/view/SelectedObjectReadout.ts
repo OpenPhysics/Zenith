@@ -283,7 +283,7 @@ export class SelectedObjectReadout extends Node {
         controls.elongationWestStringProperty,
       ],
       (selected, _snapshot, civilMs, eastLabel, westLabel) => {
-        if (!selected || selected.kind !== "planet") {
+        if (selected?.kind !== "planet") {
           return null;
         }
         const elong = bodyElongation(selected.id, civilMs);
