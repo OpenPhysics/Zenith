@@ -169,13 +169,12 @@ export class ZenithKeyboardHelpContent extends TwoColumnKeyboardHelpContent {
     ]);
 
     super(
-      [movementSection, timeSection],
+      [movementSection, timeSection, new BasicActionsKeyboardHelpSection()],
       [
         selectionZoomSection,
         displaySection,
         new SliderControlsKeyboardHelpSection(),
         new TimeControlsKeyboardHelpSection(),
-        new BasicActionsKeyboardHelpSection(),
       ],
     );
   }
