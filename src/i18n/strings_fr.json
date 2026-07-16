@@ -377,13 +377,13 @@
     "deepStarCatalog": "Catalogue d'étoiles plus profond (étoiles plus faibles jusqu'à mag 7.5)"
   },
   "info": {
-    "title": "How to use",
-    "intro": "This is a first-person view of the night sky. Set where and when you are observing, then look around and explore.",
-    "locationTip": "<b>Set your location.</b> Use the Observer location panel to drag the map pin or type a latitude and longitude — or press \"Use my location\".",
-    "timeTip": "<b>Set the date and time.</b> Use the Time panel to jump to \"Now\", step forward or back a sidereal day, or press play and change the rate to watch the sky turn.",
-    "lookTip": "<b>Look around.</b> Drag the sky to pan your view, or use the arrow keys. Look toward a cardinal direction to reorient.",
-    "zoomTip": "<b>Zoom in and out.</b> Scroll the mouse wheel or change the Field of view to see a wider or narrower patch of sky.",
-    "searchTip": "<b>Find an object.</b> Type a star or planet name in the search box at the top, then press Enter to select and track it.",
-    "displayTip": "<b>Show more or less.</b> Use the Display panel to toggle grids, cardinal directions, the meridian, and how faint a star can be before it is hidden."
+    "title": "Comment utiliser",
+    "intro": "Ceci est une vue à la première personne du ciel nocturne. Indiquez où et quand vous observez, puis regardez autour de vous et explorez.",
+    "locationTip": "<b>Indiquez votre lieu.</b> Utilisez le panneau Lieu d'observation pour déplacer le repère sur la carte ou saisir une latitude et une longitude, ou appuyez sur « Utiliser ma position ».",
+    "timeTip": "<b>Réglez la date et l'heure.</b> Utilisez le panneau Temps pour aller à « Maintenant », avancer ou reculer d'un jour sidéral, ou appuyez sur lecture et changez la vitesse pour voir le ciel tourner.",
+    "lookTip": "<b>Regardez autour de vous.</b> Faites glisser le ciel pour déplacer la vue, ou utilisez les touches fléchées. Regardez vers un point cardinal pour vous réorienter.",
+    "zoomTip": "<b>Zoomez et dézoomez.</b> Faites défiler la molette de la souris ou changez le Champ de vision pour voir une portion de ciel plus large ou plus étroite.",
+    "searchTip": "<b>Trouvez un objet.</b> Saisissez le nom d'une étoile ou d'une planète dans la zone de recherche en haut, puis appuyez sur Entrée pour le sélectionner et le suivre.",
+    "displayTip": "<b>Affichez plus ou moins.</b> Utilisez le panneau Affichage pour activer ou désactiver les grilles, les points cardinaux et le méridien, et régler jusqu'à quelle magnitude une étoile reste visible."
   }
 }
