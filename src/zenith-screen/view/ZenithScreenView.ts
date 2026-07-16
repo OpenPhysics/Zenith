@@ -60,7 +60,6 @@ const SELECTION_PANEL_INSET = 8;
 const SELECTION_PANEL_BOTTOM_CLEARANCE = 52;
 
 export class ZenithScreenView extends ScreenView {
-  private readonly model: ZenithModel;
   private readonly skyNode: PlanetariumSkyNode;
   private readonly searchNode: ObjectNameSearch;
   private readonly controlPanel: AccordionBox;
@@ -72,8 +71,6 @@ export class ZenithScreenView extends ScreenView {
       screenSummaryContent: new ZenithScreenSummaryContent(model),
       ...options,
     });
-
-    this.model = model;
 
     const stringManager = StringManager.getInstance();
     const controls = stringManager.getControls();
@@ -552,10 +549,12 @@ export class ZenithScreenView extends ScreenView {
     this.controlPanel.reset();
   }
 
-  public override step(dt: number): void {
-    this.model.step(dt);
-    // Flush any pending sky redraw once per frame, coalescing the several model
-    // property changes a single step produces into one redraw.
+  public override step(_dt: number): void {
+    // Joist (Sim.stepSimulation) already steps the screen model each frame, just
+    // before this view step — stepping it again here would advance civil time at
+    // twice the intended rate. So the view step only flushes the pending sky
+    // redraw once per frame, coalescing the several model property changes a
+    // single model step produces into one redraw.
     this.skyNode.updateDirty();
   }
 }
