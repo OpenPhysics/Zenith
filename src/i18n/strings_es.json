@@ -377,13 +377,13 @@
     "deepStarCatalog": "Catálogo de estrellas más profundo (estrellas más tenues hasta mag 7.5)"
   },
   "info": {
-    "title": "How to use",
-    "intro": "This is a first-person view of the night sky. Set where and when you are observing, then look around and explore.",
-    "locationTip": "<b>Set your location.</b> Use the Observer location panel to drag the map pin or type a latitude and longitude — or press \"Use my location\".",
-    "timeTip": "<b>Set the date and time.</b> Use the Time panel to jump to \"Now\", step forward or back a sidereal day, or press play and change the rate to watch the sky turn.",
-    "lookTip": "<b>Look around.</b> Drag the sky to pan your view, or use the arrow keys. Look toward a cardinal direction to reorient.",
-    "zoomTip": "<b>Zoom in and out.</b> Scroll the mouse wheel or change the Field of view to see a wider or narrower patch of sky.",
-    "searchTip": "<b>Find an object.</b> Type a star or planet name in the search box at the top, then press Enter to select and track it.",
-    "displayTip": "<b>Show more or less.</b> Use the Display panel to toggle grids, cardinal directions, the meridian, and how faint a star can be before it is hidden."
+    "title": "Cómo usar",
+    "intro": "Esta es una vista en primera persona del cielo nocturno. Indica dónde y cuándo estás observando, y luego mira alrededor y explora.",
+    "locationTip": "<b>Indica tu ubicación.</b> Usa el panel Ubicación del observador para arrastrar el marcador del mapa o escribir una latitud y una longitud, o pulsa «Usar mi ubicación».",
+    "timeTip": "<b>Ajusta la fecha y la hora.</b> Usa el panel Tiempo para saltar a «Ahora», avanzar o retroceder un día sidéreo, o pulsa reproducir y cambia la velocidad para ver girar el cielo.",
+    "lookTip": "<b>Mira alrededor.</b> Arrastra el cielo para desplazar la vista, o usa las teclas de flecha. Mira hacia un punto cardinal para reorientarte.",
+    "zoomTip": "<b>Acerca y aleja.</b> Desplaza la rueda del ratón o cambia el Campo de visión para ver una porción más amplia o más estrecha del cielo.",
+    "searchTip": "<b>Encuentra un objeto.</b> Escribe el nombre de una estrella o un planeta en el cuadro de búsqueda de arriba y pulsa Intro para seleccionarlo y seguirlo.",
+    "displayTip": "<b>Muestra más o menos.</b> Usa el panel Visualización para activar o desactivar las cuadrículas, los puntos cardinales y el meridiano, y ajustar cuán tenue puede ser una estrella antes de ocultarse."
   }
 }
