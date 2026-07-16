@@ -125,7 +125,8 @@ type StarLabelNode = {
 };
 
 type ConstellationLabelNode = {
-  figure: (typeof CONSTELLATION_FIGURES)[number];
+  /** Unique anchor-star ids for the figure, precomputed for the label centroid. */
+  starIds: readonly string[];
   label: Text;
 };
 
@@ -180,6 +181,13 @@ export class PlanetariumSkyNode extends Node {
   };
   private readonly selectionRing: Circle;
   private readonly hoverLabel: Text;
+
+  /**
+   * Set when a redraw dependency changes; cleared by {@link updateDirty}. Lets a
+   * single frame coalesce many dependency changes into one redraw (see the
+   * dependency wiring below).
+   */
+  private skyDirty = false;
 
   public constructor(model: ZenithModel, options: PlanetariumSkyNodeOptions) {
     super({ pickable: true });
@@ -324,7 +332,7 @@ export class PlanetariumSkyNode extends Node {
       return constellations[key] as TReadOnlyProperty<string>;
     };
     this.constellationLabelNodes = CONSTELLATION_FIGURES.map((figure) => ({
-      figure,
+      starIds: [...new Set(figure.segments.flatMap((segment) => [segment.fromId, segment.toId]))],
       label: new Text(constellationNameProperty(figure.id), {
         font: CONSTELLATION_LABEL_FONT,
         fill: ZenithColors.constellationLabelColorProperty,
@@ -437,9 +445,16 @@ export class PlanetariumSkyNode extends Node {
       ZenithColors.groundDayColorProperty,
     ] as const;
 
-    // Multilink is capped at 15 deps; wire redraw via individual lazyLinks.
+    // Multilink is capped at 15 deps; wire redraw via individual lazyLinks. The
+    // links only flag the view dirty — the redraw itself is coalesced to once per
+    // frame in updateDirty(). One logical change often notifies several of these
+    // in turn (e.g. advancing time sets civil time, then local sidereal time,
+    // then re-derives solar altitude), which would otherwise force a full redraw
+    // — grids, constellations, and every catalog star — several times per frame.
     for (const property of redrawDependencies) {
-      property.lazyLink(() => this.redraw());
+      property.lazyLink(() => {
+        this.skyDirty = true;
+      });
     }
 
     this.clipArea = Shape.bounds(this.bounds2);
@@ -447,11 +462,25 @@ export class PlanetariumSkyNode extends Node {
     this.redraw();
   }
 
+  /**
+   * Redraws the sky once if any dependency changed since the last call. Driven
+   * once per frame from the screen view's step, so a frame does at most one
+   * redraw no matter how many dependencies changed within it.
+   */
+  public updateDirty(): void {
+    if (this.skyDirty) {
+      this.skyDirty = false;
+      this.redraw();
+    }
+  }
+
   /** Repositions the panel after layout changes. */
   public setViewBounds(bounds: Bounds2): void {
     this.bounds2 = bounds;
     // Clip the fisheye overdraw (points beyond the FOV can project far outside).
     this.clipArea = Shape.bounds(bounds);
+    // Redraw immediately (layout changes are rare) and drop any pending dirty flag.
+    this.skyDirty = false;
     this.redraw();
   }
 
@@ -1138,16 +1167,10 @@ export class PlanetariumSkyNode extends Node {
     const lst = this.model.localSiderealTimeHoursProperty.value;
     const hideBelowHorizon = this.model.showHorizonProperty.value;
 
-    for (const { figure, label } of this.constellationLabelNodes) {
+    for (const { starIds, label } of this.constellationLabelNodes) {
       if (!(show && starVisibility > CONSTELLATION_LABEL_MIN_VISIBILITY)) {
         label.visible = false;
         continue;
-      }
-
-      const starIds = new Set<string>();
-      for (const segment of figure.segments) {
-        starIds.add(segment.fromId);
-        starIds.add(segment.toId);
       }
 
       let sumX = 0;

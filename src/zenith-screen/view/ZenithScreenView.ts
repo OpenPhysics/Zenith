@@ -554,5 +554,8 @@ export class ZenithScreenView extends ScreenView {
 
   public override step(dt: number): void {
     this.model.step(dt);
+    // Flush any pending sky redraw once per frame, coalescing the several model
+    // property changes a single step produces into one redraw.
+    this.skyNode.updateDirty();
   }
 }
