@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "SceneryStack planetarium renderer — project the night sky for an observer on Earth.",
+  "description": "SceneryStack planetarium renderer \u2014 project the night sky for an observer on Earth.",
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
@@ -46,7 +46,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",
     "@types/node": "^26.1.1",
-    "happy-dom": "^20.10.6",
+    "happy-dom": "^20.11.0",
     "jsdom": "^29.1.1",
     "png-to-ico": "^3.0.2",
     "sharp": "^0.35.3",
