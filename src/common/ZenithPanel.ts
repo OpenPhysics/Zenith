@@ -1,5 +1,5 @@
 /**
- * SimPanel.ts
+ * ZenithPanel.ts
  *
  * A pre-themed Panel that automatically uses ZenithColors for background and
  * border. Use this for all control panels and info boxes in the sim so that
@@ -7,31 +7,31 @@
  *
  * ── Basic usage ───────────────────────────────────────────────────────────────
  *
- *   import { SimPanel } from "../../common/SimPanel.js";
+ *   import { ZenithPanel } from "../../common/ZenithPanel.js";
  *   import { VBox, Text } from "scenerystack/scenery";
  *
  *   const content = new VBox({
  *     children: [ new Text("label"), slider ],
  *     spacing: 8,
  *   });
- *   const panel = new SimPanel(content);
+ *   const panel = new ZenithPanel(content);
  *
  * ── Overriding defaults ───────────────────────────────────────────────────────
  *
  *   // Wider margins, sharper corners, custom stroke
- *   const panel = new SimPanel(content, { xMargin: 20, cornerRadius: 0 });
+ *   const panel = new ZenithPanel(content, { xMargin: 20, cornerRadius: 0 });
  *
  *   // Transparent background (decorative border only)
- *   const panel = new SimPanel(content, { fill: "transparent" });
+ *   const panel = new ZenithPanel(content, { fill: "transparent" });
  */
 
 import type { Node } from "scenerystack/scenery";
 import type { PanelOptions } from "scenerystack/sun";
 import { Panel } from "scenerystack/sun";
-import { PANEL_CORNER_RADIUS } from "../SimConstants.js";
 import ZenithColors from "../ZenithColors.js";
+import { PANEL_CORNER_RADIUS } from "../ZenithConstants.js";
 
-export class SimPanel extends Panel {
+export class ZenithPanel extends Panel {
   public constructor(content: Node, providedOptions?: PanelOptions) {
     super(content, {
       fill: ZenithColors.panelBackgroundColorProperty,

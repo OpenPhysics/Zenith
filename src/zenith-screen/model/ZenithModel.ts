@@ -59,7 +59,7 @@ import {
   SIDEREAL_HOURS_PER_SOLAR_HOUR,
   TIME_RATE_INDEX_RANGE,
   TIME_RATE_MULTIPLIERS,
-} from "../../SimConstants.js";
+} from "../../ZenithConstants.js";
 import { DEFAULT_EPOCH_PRESET, EPOCH_PRESET_CIVIL_MS, EpochPreset } from "./EpochPreset.js";
 import { DEFAULT_LOCATION_PRESET, LOCATION_PRESET_COORDS, LocationPreset } from "./LocationPreset.js";
 import type { SelectedSkyObject } from "./SelectedSkyObject.js";

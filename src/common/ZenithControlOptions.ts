@@ -7,9 +7,9 @@
 import { HBox, type Node } from "scenerystack/scenery";
 import { NumberControl } from "scenerystack/scenery-phet";
 import type { CheckboxOptions } from "scenerystack/sun";
-import { CHECKBOX_BOX_WIDTH, NUMBER_CONTROL_SLIDER_TRACK_SIZE, SLIDER_THUMB_SIZE } from "../SimConstants.js";
 import ZenithColors from "../ZenithColors.js";
-import { FLAT_RECTANGULAR_BUTTON_OPTIONS } from "./SimButtonOptions.js";
+import { CHECKBOX_BOX_WIDTH, NUMBER_CONTROL_SLIDER_TRACK_SIZE, SLIDER_THUMB_SIZE } from "../ZenithConstants.js";
+import { FLAT_RECTANGULAR_BUTTON_OPTIONS } from "./ZenithButtonOptions.js";
 
 /** Base NumberControl options; spread into each instance and add titleNodeOptions as needed. */
 export const ZENITH_NUMBER_CONTROL_OPTIONS = {

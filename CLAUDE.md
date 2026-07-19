@@ -14,7 +14,7 @@ SceneryStack **first-person planetarium** for the night sky. Observer location, 
 | Model | `zenith-screen/model/ZenithModel.ts`, `BrightStarCatalog.ts` (~4103 stars, mag ≤ 5.8), `DeepStarCatalog.ts`, `NamedBrightStars.ts`, `ConstellationLines.ts`, `SolarSystemBodies.ts`, `objectSearch.ts` |
 | Sky math | `src/common/sky/SkyCoordinates.ts` (hand-rolled equatorial↔horizontal), `EclipticCoordinates.ts`, `PlanetEphemeris.ts` (sole `astronomy-engine` import boundary), `SkyTwilight.ts`, `civilDateTime.ts` |
 | Views | `zenith-screen/view/ZenithScreenView.ts`, `PlanetariumSkyNode.ts`, `PlanetariumPlanetsNode.ts`, `SkyProjection.ts`, `attachPlanetariumInteraction.ts`, `ObserverLocationNode.ts`, `TimeControlPanel.ts` |
-| Colors / constants | `src/ZenithColors.ts`, `src/SimConstants.ts` |
+| Colors / constants | `src/ZenithColors.ts`, `src/ZenithConstants.ts` |
 | Strings | `src/i18n/StringManager.ts` |
 | Preferences / query params | `src/preferences/zenithQueryParameters.ts` (public deep-link params) |
 | Entry | `src/main.ts` |

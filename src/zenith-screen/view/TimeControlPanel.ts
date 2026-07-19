@@ -13,13 +13,14 @@ import { Shape } from "scenerystack/kite";
 import { HBox, type Node, Path, Text, VBox } from "scenerystack/scenery";
 import { PhetFont, PlayPauseButton } from "scenerystack/scenery-phet";
 import { AccordionBox, ButtonNode, ComboBox, RectangularPushButton } from "scenerystack/sun";
+import { formatLocalSolarTime } from "../../common/sky/civilDateTime.js";
 import {
   FLAT_RECTANGULAR_BUTTON_OPTIONS,
   LIGHT_SURFACE_TEXT_FILL,
   SIM_COMBO_BOX_OPTIONS,
-} from "../../common/SimButtonOptions.js";
-import { formatLocalSolarTime } from "../../common/sky/civilDateTime.js";
+} from "../../common/ZenithButtonOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
+import ZenithColors from "../../ZenithColors.js";
 import {
   CONTROL_FONT_SIZE,
   CONTROL_PANEL_WIDTH,
@@ -29,8 +30,7 @@ import {
   PANEL_TITLE_FONT_SIZE,
   PANEL_X_MARGIN,
   PANEL_Y_MARGIN,
-} from "../../SimConstants.js";
-import ZenithColors from "../../ZenithColors.js";
+} from "../../ZenithConstants.js";
 import { EpochPreset } from "../model/EpochPreset.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import { CivilDateTimeControl } from "./CivilDateTimeControl.js";

@@ -29,5 +29,5 @@ export const LOCATION_PRESET_COORDS = new Map<LocationPreset, { latitudeDeg: num
   [LocationPreset.SYDNEY, { latitudeDeg: -33.9, longitudeDeg: 151.2 }],
 ]);
 
-/** Default preset matching SimConstants Boulder defaults. */
+/** Default preset matching ZenithConstants Boulder defaults. */
 export const DEFAULT_LOCATION_PRESET = LocationPreset.BOULDER;

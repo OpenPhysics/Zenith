@@ -17,10 +17,11 @@ import {
   FLAT_RESET_ALL_BUTTON_OPTIONS,
   LIGHT_SURFACE_TEXT_FILL,
   SIM_COMBO_BOX_OPTIONS,
-} from "../../common/SimButtonOptions.js";
-import { SimPanel } from "../../common/SimPanel.js";
+} from "../../common/ZenithButtonOptions.js";
 import { ZENITH_CHECKBOX_OPTIONS, ZENITH_NUMBER_CONTROL_OPTIONS } from "../../common/ZenithControlOptions.js";
+import { ZenithPanel } from "../../common/ZenithPanel.js";
 import { StringManager } from "../../i18n/StringManager.js";
+import ZenithColors from "../../ZenithColors.js";
 import {
   CONTROL_FONT_SIZE,
   CONTROL_PANEL_WIDTH,
@@ -34,8 +35,7 @@ import {
   PANEL_X_MARGIN,
   PANEL_Y_MARGIN,
   SCREEN_VIEW_MARGIN,
-} from "../../SimConstants.js";
-import ZenithColors from "../../ZenithColors.js";
+} from "../../ZenithConstants.js";
 import { LocationPreset } from "../model/LocationPreset.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import { attachPlanetariumInteraction } from "./attachPlanetariumInteraction.js";
@@ -411,7 +411,7 @@ export class ZenithScreenView extends ScreenView {
     this.addChild(this.skyNode);
 
     // Selection readout sits over the sky (bottom-left).
-    const selectionPanel = new SimPanel(selectedReadout, {
+    const selectionPanel = new ZenithPanel(selectedReadout, {
       xMargin: 8,
       yMargin: 6,
     });

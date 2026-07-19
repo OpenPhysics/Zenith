@@ -22,7 +22,7 @@
 
 import { type Bounds2, Vector2, Vector3 } from "scenerystack/dot";
 import { altAzToVector3, normalizeDegrees } from "../../common/sky/SkyCoordinates.js";
-import { PROJECTION_CULL_DEG } from "../../SimConstants.js";
+import { PROJECTION_CULL_DEG } from "../../ZenithConstants.js";
 
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;

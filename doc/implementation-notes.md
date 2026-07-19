@@ -107,7 +107,7 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 | `solarAltitudeDegProperty` | degrees | Derived; drives twilight sky + star fade |
 
 Defaults (Boulder, CO; look south; epoch `2024-06-21 18:00 UTC`) and ranges live
-in `src/SimConstants.ts`. Named location / epoch tables:
+in `src/ZenithConstants.ts`. Named location / epoch tables:
 `LocationPreset.ts`, `EpochPreset.ts`. Startup deep-links:
 `src/preferences/zenithQueryParameters.ts`.
 

@@ -28,8 +28,8 @@ import {
   Path,
   Rectangle,
 } from "scenerystack/scenery";
-import { LATITUDE_RANGE, LOCATION_STEP_DEGREES, LONGITUDE_RANGE } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
+import { LATITUDE_RANGE, LOCATION_STEP_DEGREES, LONGITUDE_RANGE } from "../../ZenithConstants.js";
 import { EARTH_SHORE_POLYGONS, type EarthShorePoint } from "./EarthShoreData.js";
 
 export type ObserverLocationNodeOptions = NodeOptions & {

@@ -23,8 +23,8 @@ import {
 } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
 import { StringManager } from "../../i18n/StringManager.js";
-import { STAR_MAG_BRIGHT } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
+import { STAR_MAG_BRIGHT } from "../../ZenithConstants.js";
 import { SOLAR_SYSTEM_BODIES, type SolarSystemBodyVisual } from "../model/SolarSystemBodies.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import type { SkyProjection } from "./SkyProjection.js";

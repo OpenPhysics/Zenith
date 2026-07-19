@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { equatorialToHorizontal } from "../src/common/sky/SkyCoordinates.js";
-import { DEFAULT_LATITUDE_DEG } from "../src/SimConstants.js";
+import { DEFAULT_LATITUDE_DEG } from "../src/ZenithConstants.js";
 import {
   BRIGHT_STAR_COUNT,
   BRIGHT_STAR_DEC_DEG,

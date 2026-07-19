@@ -12,9 +12,9 @@
 
 import { RichText, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
-import { LIGHT_SURFACE_TEXT_FILL } from "../../common/SimButtonOptions.js";
+import { LIGHT_SURFACE_TEXT_FILL } from "../../common/ZenithButtonOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
-import { CONTROL_FONT_SIZE } from "../../SimConstants.js";
+import { CONTROL_FONT_SIZE } from "../../ZenithConstants.js";
 
 /** Wraps body text at a comfortable reading width for the dialog. */
 const CONTENT_MAX_WIDTH = 460;

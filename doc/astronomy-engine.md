@@ -91,7 +91,7 @@ generally (only the Moon's `diam_deg` in `Libration`). Neither is reinvention.
 
 ### 5. `SIDEREAL_HOURS_PER_SOLAR_HOUR` is a constant, not a reinvention
 
-`SimConstants.ts` defines `1.00273790935`. astronomy-engine does not expose the
+`ZenithConstants.ts` defines `1.00273790935`. astronomy-engine does not expose the
 sidereal/solar ratio as a named constant; the sim uses it for the educational
 "scrub by sidereal time" feature (`ZenithModel.advanceSiderealTime`), where one
 full sidereal day returns the stars to place while the Sun lags ~3 min 56 s.

@@ -21,8 +21,8 @@ import { PhetFont } from "scenerystack/scenery-phet";
 import { eclipticEquatorPoints } from "../../common/sky/EclipticCoordinates.js";
 import { type EquatorialCoordinates, equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
 import { StringManager } from "../../i18n/StringManager.js";
-import { CELESTIAL_LINE_SAMPLE_STEP_DEG, OBJECT_PATH_SAMPLE_STEP_DEG } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
+import { CELESTIAL_LINE_SAMPLE_STEP_DEG, OBJECT_PATH_SAMPLE_STEP_DEG } from "../../ZenithConstants.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import type { SkyProjection } from "./SkyProjection.js";
 

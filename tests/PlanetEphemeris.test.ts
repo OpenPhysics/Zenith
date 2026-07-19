@@ -13,7 +13,7 @@ import {
   planetEquatorialState,
 } from "../src/common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal } from "../src/common/sky/SkyCoordinates.js";
-import { DEFAULT_LATITUDE_DEG, DEFAULT_LONGITUDE_DEG } from "../src/SimConstants.js";
+import { DEFAULT_LATITUDE_DEG, DEFAULT_LONGITUDE_DEG } from "../src/ZenithConstants.js";
 import { solarSystemBodyVisual } from "../src/zenith-screen/model/SolarSystemBodies.js";
 
 /** 2024-06-21 18:00 UTC ≈ noon Mountain Daylight Time (summer solstice). */

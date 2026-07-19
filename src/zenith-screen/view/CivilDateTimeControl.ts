@@ -13,6 +13,7 @@ import { NumberControl, PhetFont } from "scenerystack/scenery-phet";
 import { civilPartsToTimeMs, civilTimeMsToParts, daysInUtcMonth } from "../../common/sky/civilDateTime.js";
 import { ZENITH_COMPACT_SPINNER_NUMBER_CONTROL_OPTIONS } from "../../common/ZenithControlOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
+import ZenithColors from "../../ZenithColors.js";
 import {
   CIVIL_DAY_RANGE,
   CIVIL_HOUR_RANGE,
@@ -21,8 +22,7 @@ import {
   CONTROL_FONT_SIZE,
   CONTROL_PANEL_WIDTH,
   PANEL_CONTENT_SPACING,
-} from "../../SimConstants.js";
-import ZenithColors from "../../ZenithColors.js";
+} from "../../ZenithConstants.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 
 export class CivilDateTimeControl extends GridBox {

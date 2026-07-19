@@ -10,7 +10,7 @@ import {
   parseCivilDateQueryParam,
   resolveCivilTimeMsFromQuery,
 } from "../src/preferences/zenithQueryParameters.js";
-import { DEFAULT_CIVIL_TIME_MS } from "../src/SimConstants.js";
+import { DEFAULT_CIVIL_TIME_MS } from "../src/ZenithConstants.js";
 
 describe("zenithQueryParameters date helpers", () => {
   it("treats empty or null date as the sim default civil epoch", () => {

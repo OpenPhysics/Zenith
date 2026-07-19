@@ -11,7 +11,7 @@ import { Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
 import { Checkbox } from "scenerystack/sun";
 import type { Tandem } from "scenerystack/tandem";
-import { LIGHT_SURFACE_TEXT_FILL } from "../common/SimButtonOptions.js";
+import { LIGHT_SURFACE_TEXT_FILL } from "../common/ZenithButtonOptions.js";
 import { StringManager } from "../i18n/StringManager.js";
 import ZenithColors from "../ZenithColors.js";
 import ZenithNamespace from "../ZenithNamespace.js";

@@ -22,8 +22,8 @@ import { bodyElongation, constellationAt, type PlanetBodyId } from "../../common
 import { equatorialToHorizontal, riseSetInfo, solarHoursUntilLst } from "../../common/sky/SkyCoordinates.js";
 import { ZENITH_CHECKBOX_OPTIONS } from "../../common/ZenithControlOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
-import { CONTROL_FONT_SIZE, CONTROL_PANEL_WIDTH, SIDEREAL_HOURS_PER_SOLAR_HOUR } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
+import { CONTROL_FONT_SIZE, CONTROL_PANEL_WIDTH, SIDEREAL_HOURS_PER_SOLAR_HOUR } from "../../ZenithConstants.js";
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 

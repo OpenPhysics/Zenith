@@ -1,5 +1,5 @@
 /**
- * SimButtonOptions.ts
+ * ZenithButtonOptions.ts
  *
  * Shared flat button appearance for the sim. Rectangular and round push buttons
  * default to SceneryStack's 3-D appearance; pass these options (or spread them

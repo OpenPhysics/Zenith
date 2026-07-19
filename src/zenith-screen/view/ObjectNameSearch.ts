@@ -16,11 +16,11 @@ import { DerivedProperty, Multilink, PatternStringProperty, Property, type TRead
 import type { OneKeyStroke } from "scenerystack/scenery";
 import { KeyboardListener, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
-import { LIGHT_SURFACE_TEXT_FILL } from "../../common/SimButtonOptions.js";
-import { SimPanel } from "../../common/SimPanel.js";
+import { LIGHT_SURFACE_TEXT_FILL } from "../../common/ZenithButtonOptions.js";
+import { ZenithPanel } from "../../common/ZenithPanel.js";
 import { StringManager } from "../../i18n/StringManager.js";
-import { CONTROL_FONT_SIZE, PANEL_CONTENT_SPACING } from "../../SimConstants.js";
 import ZenithColors from "../../ZenithColors.js";
+import { CONTROL_FONT_SIZE, PANEL_CONTENT_SPACING } from "../../ZenithConstants.js";
 import { NAMED_BRIGHT_STARS } from "../model/NamedBrightStars.js";
 import { rankObjects } from "../model/objectSearch.js";
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
@@ -189,7 +189,7 @@ export class ObjectNameSearch extends Node {
       caret.visible = isFocused;
     });
 
-    const panel = new SimPanel(
+    const panel = new ZenithPanel(
       new VBox({ spacing: PANEL_CONTENT_SPACING, align: "left", children: [fieldNode, resultsBox, statusText] }),
       {
         xMargin: 8,

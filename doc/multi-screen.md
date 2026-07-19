@@ -134,7 +134,7 @@ import {
   DEFAULT_CIVIL_TIME_MS,
   DEFAULT_LATITUDE_DEG,
   DEFAULT_LONGITUDE_DEG,
-} from "../SimConstants.js";
+} from "../ZenithConstants.js";
 
 export class ObserverModel {
   public readonly latitudeProperty = new NumberProperty(DEFAULT_LATITUDE_DEG);

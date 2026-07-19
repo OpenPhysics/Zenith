@@ -1,5 +1,5 @@
 /**
- * SimConstants.ts
+ * ZenithConstants.ts
  *
  * Central repository for every named numeric constant used across the
  * simulation. Bare numbers that carry semantic meaning (sizes, margins,
@@ -299,7 +299,7 @@ export const EQUATORIAL_GRID_DEC_MAX_DEG = 80;
 export const EQUATORIAL_GRID_PARALLEL_DEC_MIN_DEG = -60;
 export const EQUATORIAL_GRID_PARALLEL_DEC_MAX_DEG = 60;
 
-ZenithNamespace.register("SimConstants", {
+ZenithNamespace.register("ZenithConstants", {
   SCREEN_VIEW_MARGIN,
   PANEL_CORNER_RADIUS,
   CONTROL_FONT_SIZE,

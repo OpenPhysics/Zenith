@@ -43,7 +43,7 @@ import {
   LOOK_ZENITH_ALTITUDE_DEG,
   TIME_DRAG_HOURS_PER_PIXEL,
   TIME_KEYBOARD_STEP_HOURS,
-} from "../../SimConstants.js";
+} from "../../ZenithConstants.js";
 import type { SelectedSkyObject } from "../model/SelectedSkyObject.js";
 import type { ZenithModel } from "../model/ZenithModel.js";
 import type { PlanetariumSkyNode } from "./PlanetariumSkyNode.js";

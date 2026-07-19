@@ -20,7 +20,7 @@ import {
   FIELD_OF_VIEW_RANGE,
   FOV_KEYBOARD_STEP_DEG,
   LOOK_ALTITUDE_RANGE,
-} from "../src/SimConstants.js";
+} from "../src/ZenithConstants.js";
 import { EPOCH_PRESET_CIVIL_MS, EpochPreset } from "../src/zenith-screen/model/EpochPreset.js";
 import { LocationPreset } from "../src/zenith-screen/model/LocationPreset.js";
 import { ZenithModel } from "../src/zenith-screen/model/ZenithModel.js";

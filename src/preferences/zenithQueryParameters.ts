@@ -30,7 +30,7 @@ import {
   LATITUDE_RANGE,
   LONGITUDE_RANGE,
   MAGNITUDE_LIMIT_RANGE,
-} from "../SimConstants.js";
+} from "../ZenithConstants.js";
 import ZenithNamespace from "../ZenithNamespace.js";
 
 /**

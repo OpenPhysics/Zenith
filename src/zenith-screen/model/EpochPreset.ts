@@ -6,7 +6,7 @@
  */
 
 import { Enumeration, EnumerationValue } from "scenerystack/phet-core";
-import { DEFAULT_CIVIL_TIME_MS } from "../../SimConstants.js";
+import { DEFAULT_CIVIL_TIME_MS } from "../../ZenithConstants.js";
 
 export class EpochPreset extends EnumerationValue {
   public static readonly DEFAULT = new EpochPreset();

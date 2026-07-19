@@ -24,6 +24,7 @@ import {
 } from "../../common/sky/SkyCoordinates.js";
 import { ASTRONOMICAL_TWILIGHT_DEG, effectiveStarVisibility, twilightSkyColors } from "../../common/sky/SkyTwilight.js";
 import { StringManager } from "../../i18n/StringManager.js";
+import ZenithColors from "../../ZenithColors.js";
 import {
   ALT_AZ_GRID_ALT_MAX_DEG,
   ALT_AZ_GRID_ALT_STEP_DEG,
@@ -39,8 +40,7 @@ import {
   STAR_MAG_BRIGHT,
   STAR_RADIUS_MAX,
   STAR_RADIUS_MIN,
-} from "../../SimConstants.js";
-import ZenithColors from "../../ZenithColors.js";
+} from "../../ZenithConstants.js";
 import {
   BRIGHT_STAR_COUNT,
   BRIGHT_STAR_DEC_DEG,
