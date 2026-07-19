@@ -21,15 +21,22 @@ main.ts
        ├─ ZenithModel          observer + civil clock + look/FOV + overlays + selection
        └─ ZenithScreenView
             ├─ PlanetariumSkyNode          (FOV: stars + overlays + labels)
-            │    └─ CelestialLinesNode     (coordinates, ecliptic, and object paths)
-            ├─ PlanetariumPlanetsNode
-            ├─ SelectedObjectReadout
+            │    ├─ CelestialLinesNode     (coordinates, ecliptic, object paths)
+            │    └─ PlanetariumPlanetsNode (Sun/Moon/planets)
+            ├─ SelectedObjectReadout       (bottom-left; includes Track checkbox)
+            ├─ ObjectNameSearch            (top-center type-ahead)
+            ├─ AccordionBox × 3            (Location | Time | Display)
             ├─ attachPlanetariumInteraction
-            ├─ TimeControlPanel            (preset combo, date spinners, Now, sidereal jumps, rate ladder controls)
-            ├─ ObserverLocationNode        (interactive map and lat/lon controls)
-            ├─ Display panel controls      (FOV, magnitude limit, and grid/line/cardinal/atmosphere checkboxes)
+            ├─ TimeControlPanel            (CivilDateTimeControl, rate ladder, sidereal ±1)
+            ├─ ObserverLocationNode        (map + lat/lon + geolocation)
+            ├─ ZenithInfoDialogContent     (ⓘ usage tips)
             ├─ ZenithScreenSummaryContent
             └─ ZenithKeyboardHelpContent
+
+src/zenith-screen/model/objectSearch.ts     search ranking (unit-tested)
+src/common/resolveObserverLocation.ts       geolocation + IP fallback
+src/common/ZenithControlOptions.ts          shared control theming
+src/zenith-screen/model/EarthShoreData.ts   location-panel coastline
 
 src/common/sky/SkyCoordinates.ts   equatorial ↔ horizontal (+ rise/set/transit)
 src/common/sky/EclipticCoordinates.ts  equatorial ↔ ecliptic
@@ -62,7 +69,7 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 
 | Property | Units | Notes |
 |---|---|---|
-| `timer.isPlayingProperty` | — | Play/pause for sky motion (`TimeModel`) |
+| `timer.isPlayingProperty` | — | Play/pause for sky motion (`TimeModel`; **starts playing** at 1×) |
 | `timer.timeProperty` | s | Elapsed simulation time |
 | `timeRateIndexProperty` | Integer | Index into the discrete signed playback rate ladder |
 | `timeRateProperty` | derived multiplier | Signed playback rate multiplier (can be negative for reverse time) |
@@ -86,7 +93,7 @@ in TypeScript with Scenery nodes (no WASM / HiPS). Planet positions use
 | `showPlanetLabelsProperty` | — | Name tags (also Preferences; survives Reset All) |
 | `showStarLabelsProperty` | — | Curated bright-star name tags (Preferences) |
 | `showConstellationsProperty` | — | Stick figures (Preferences) |
-| `deepStarCatalogProperty` | — | Whether the deeper Hipparcos catalog is rendered (Preferences) |
+| `deepStarCatalogProperty` | — | When true, **replaces** bright catalog at render (Preferences) |
 | `showEclipticProperty` | — | Whether the ecliptic great circle is drawn |
 | `showCelestialEquatorProperty` | — | Whether the celestial equator great circle is drawn |
 | `showObjectPathProperty` | — | Whether the selected object's 24 h diurnal path is drawn |
@@ -108,7 +115,8 @@ in `src/SimConstants.ts`. Named location / epoch tables:
 
 - `step(dt)` advances `TimeModel` and civil time by
   `dt × CIVIL_HOURS_PER_SIM_SECOND × timeRate`, then resyncs LST.
-- `advanceCivilTimeHours` / `advanceSiderealTime` support Ctrl-drag and hotkeys.
+- `advanceSiderealTime` — Ctrl-drag, Ctrl+arrows, ±1 sidereal-day buttons (stars move 1:1 with gesture).
+- `advanceCivilTimeHours` — available for explicit civil jumps; not used for Ctrl-drag.
 - `reset()` restores every Property and the timer (including presets, rate index,
   and selection). Preference-backed overlays that live in Preferences
   (`showStarLabels`, `showConstellations`, `showPlanetLabels`, `deepStarCatalog`)
@@ -177,10 +185,10 @@ Wired in `attachPlanetariumInteraction` and control-panel listeners:
 | Input | Effect |
 |---|---|
 | Drag / arrows | Pan look az/alt |
-| Ctrl-drag / Ctrl+arrows | Advance civil time (LST follows) |
+| Ctrl-drag / Ctrl+arrows | **Advance sidereal time** (`advanceSiderealTime`; civil clock follows ~1/1.0027×) |
 | Shift-click | Measure angular distance between two points |
-| Click (small motion) | Select nearest named star or planet |
-| N / P | Cycle selectable objects in the FOV |
+| Click (small motion) | Select nearest **named** star or planet (38 + 9 bodies) |
+| N / P | Cycle selectable named objects in the FOV |
 | Escape | Clear selection and the angular-measurement tool |
 | T | Toggle tracking of selected object |
 | + / − (or scroll wheel) | Change FOV |
@@ -191,7 +199,8 @@ Wired in `attachPlanetariumInteraction` and control-panel listeners:
 | Location ComboBox | Jump observer site |
 | Epoch ComboBox | Jump civil epoch |
 | Year / month / day / hour NumberControls | Arbitrary UTC civil jump → epoch `CUSTOM` |
-| Checkboxes | Alt/az grid, cardinals, meridian, RA/Dec grid, horizon, planets, atmosphere, true-scale discs, ecliptic, celestial equator, selected object path, track selected object |
+| Checkboxes (Display panel) | Alt/az grid, cardinals, meridian, RA/Dec grid, horizon, planets, atmosphere, true-scale discs, ecliptic, celestial equator, selected object path |
+| SelectedObjectReadout | **Track selected object** checkbox (not in Display panel) |
 | Preferences → Simulation | Star names, constellation lines, planet names, deeper star catalog (also seedable via query params) |
 
 Keyboard Shortcuts (`?`) come from `ZenithKeyboardHelpContent` / `ZenithHotkeyData`.
@@ -199,7 +208,8 @@ Keyboard Shortcuts (`?`) come from `ZenithKeyboardHelpContent` / `ZenithHotkeyDa
 ### Selection details
 
 `SelectedObjectReadout` reacts to `selectedObjectProperty`: name, magnitude,
-RA/Dec, and alt/az, plus **rise / set / transit** event times. Times are
+RA/Dec, alt/az, IAU constellation name, object type, **solar elongation** (planets/Moon), plus
+**rise / set / transit** event times. Times are
 computed by `riseSetInfo` (`SkyCoordinates.ts`) as the next LST at which the
 object crosses altitude 0° (rise/set) or the meridian (transit), then reported
 both as a "time-from-now" duration and a local-solar clock string. Circumpolar
@@ -231,6 +241,11 @@ Example classroom link:
 `index.html?lat=-33.9&lon=151.2&date=2024-12-21T10:00:00Z&fov=60&magLimit=4`
 
 ---
+
+## Testing
+
+`npm test` covers `ZenithModel`, `BrightStarProjection`, `objectSearch`, keyboard shortcuts, and
+memory-leak regression.
 
 ## Deferred
 

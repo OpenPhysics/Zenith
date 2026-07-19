@@ -56,11 +56,9 @@ $1\times$, across zero into reverse at $-1\times$, down to fast-rewind at
 $-30000\times$). At $1\times$, the simulation runs in real time (one second of
 wall time corresponds to one second of civil time).
 
-Learners can jump to the current real-world moment using the **Now** button,
-or step forward/backward by exactly one **sidereal day** ($\pm 1$), which returns
-the stars to the exact same position relative to the horizon while the Sun and planets
-drift slightly. Play, pause, Ctrl-drag on the sky, and date presets all update
-the same civil clock.
+Play, pause, Ctrl-drag on the sky, and date presets all update the civil clock. **Ctrl-drag and
+Ctrl+arrow keys advance sidereal time** (stars move 1:1 with the gesture; civil time advances ~1/1.0027
+as fast). The ±1 sidereal-day buttons also advance sidereal time by exactly 24 h.
 
 Date/time presets target classroom epochs (≈ 18:00 UTC so day/night contrast
 works across many longitudes):
@@ -72,16 +70,39 @@ works across many longitudes):
 Year / month / day / hour controls jump to any UTC civil moment in range
 (1900–2100).
 
+### Default sky (reset / first load)
+
+| Setting | Default |
+|---|---|
+| Location | Boulder (40° N, 105° W) |
+| Epoch | 2024-06-21 18:00 UTC |
+| Look | South (180° az), 30° altitude |
+| FOV | 140° |
+| Atmosphere | **Off** (permanent night sky until enabled) |
+| Magnitude limit | **5.5** (catalog reaches ~5.8) |
+| Time playback | **Playing** at 1× |
+| Star labels | On; constellation lines off; planet labels on |
+
+With atmosphere off, stars stay fully visible for daytime demos; enabling atmosphere adds twilight
+colors and daytime star fade.
+
 ### Look direction and field of view
 
 - **Azimuth** — compass direction of the view center (0° = north, 90° = east,
   180° = south, …)
 - **Altitude** — angle of the view center (clamped at 0° on the horizon if the
   ground is visible; otherwise ranging from −90° nadir to 90° zenith)
-- **Field of view** — horizontal width of the sky panel (about 50°–180°)
+- **Field of view** — horizontal width of the sky panel (**5°–180°**; default **140°**)
 
 Drag or arrow keys pan; the scroll wheel, `+`/`−` keys, or FOV slider zooms. Default look is
 south at a modest altitude — a natural outdoor “looking up” pose.
+
+### Finding objects
+
+- **Object name search** (top-center) — type-ahead over **47 named entries** (38 curated bright stars +
+  9 solar-system bodies). Enter selects and enables tracking.
+- **"Use my location"** — browser geolocation with IP fallback.
+- **N / P** — cycle only among named stars and planets currently in the field of view.
 
 ### Coordinate systems (overlays)
 
@@ -106,11 +127,11 @@ Sun is highest.
 
 ### Identifying and measuring
 
-- **Hover** over any star or planet to see its name without clicking.
-- **Click** to select it and read its details; **N / P** cycle through objects.
-- **Object tracking** — check **Track selected object** or press **T** to center the
-  view on the selected star or planet. The camera will automatically track the object
-  as time passes; manual panning will cancel tracking.
+- **Hover** over a **named** star or planet (38 curated stars + 9 bodies) to see its name. Anonymous
+  catalog dots are not hoverable or selectable.
+- **Click** to select and read details in the bottom-left **Selected Object** panel.
+- **Object tracking** — **Track selected object** checkbox in that panel (or press **T**) centers the
+  view on the selection; manual panning cancels tracking.
 - **Shift-click** two points (snapping to nearby objects) to measure the
   **angular distance** between them in degrees — a line and the angle appear on
   the sky. Escape clears it.
@@ -119,8 +140,8 @@ Sun is highest.
 
 - **Bright stars** — catalog stars down to about magnitude 5.8; a magnitude
   limit hides fainter ones for less clutter.
-- **Deeper star catalog** — an optional Hipparcos-based catalog of about 25,700
-  stars down to magnitude 7.5, enabled via Preferences → Simulation.
+- **Deeper star catalog** — optional Hipparcos-based catalog (~25,700 stars to mag 7.5). When enabled,
+  it **replaces** the bright catalog at render time (not additive).
 - **Star names** — curated bright-star labels (Preferences → Simulation, or
   panel options depending on build).
 - **Constellations** — stick figures for all 88 IAU constellations (western
@@ -134,9 +155,9 @@ Sun is highest.
 
 ### Atmosphere and daylight
 
-With atmosphere on, sky color follows the Sun’s altitude (day → twilight →
+With atmosphere on, sky color follows the Sun's altitude (day → twilight →
 night), and stars fade as the Sun rises — closer to real outdoor viewing.
-Turning atmosphere off keeps a permanent night sky so stars stay fully visible
+**Default: atmosphere off** — permanent night sky so stars stay fully visible
 for daytime teaching demos (Stellarium-style).
 
 ---
