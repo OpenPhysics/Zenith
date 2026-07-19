@@ -109,6 +109,21 @@ JSON, exposed via `StringManager.getA11yStrings()`. When building a real sim, ma
 `currentDetailsContent` a live `DerivedProperty` over model state and add `accessibleName`s to
 every interactive node. Full convention and checklist: [../Baton/ACCESSIBILITY.md](../Baton/ACCESSIBILITY.md).
 
+## Testing
+
+Fleet-standard Vitest layout:
+
+| Path | Purpose |
+|---|---|
+| `vitest.config.ts` | Test environment + `setupFiles` when present; `execArgv: ["--expose-gc"]` with memory-leak suite |
+| `tests/setup.ts` | Canvas / AudioContext mocks + `init({ name: "…" })` before SceneryStack imports (when required) |
+| `tests/**/*.test.ts` | Model/physics unit tests — mirror `src/` under `tests/` |
+| `tests/memory-leak.test.ts` | WeakRef + `forceGC` dispose regression (fleet pattern) |
+
+- Put unit tests only under root `tests/` (never co-locate or use `__tests__/`).
+- Run `npm test`. CI runs the suite when a `test` script is present.
+- Expand `memory-leak.test.ts` for components that add/remove nodes or link Properties at runtime (see OpticsLab).
+
 ## Customizing a new sim from this template
 
 ### Automated rename (recommended)

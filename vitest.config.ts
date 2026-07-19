@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    execArgv: ["--expose-gc"],
     // happy-dom gives a lightweight DOM so SceneryStack code can import.
     environment: "happy-dom",
     setupFiles: ["./tests/setup.ts"],
