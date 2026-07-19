@@ -109,6 +109,10 @@ JSON, exposed via `StringManager.getA11yStrings()`. When building a real sim, ma
 `currentDetailsContent` a live `DerivedProperty` over model state and add `accessibleName`s to
 every interactive node. Full convention and checklist: [../Baton/ACCESSIBILITY.md](../Baton/ACCESSIBILITY.md).
 
+## Compliance carve-outs
+
+- **Hardcoded colors:** small location-marker fills in `ObserverLocationNode.ts` that intentionally use a fixed accent for map legibility.
+
 ## Testing
 
 Fleet-standard Vitest layout:
