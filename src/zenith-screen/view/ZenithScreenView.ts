@@ -441,6 +441,7 @@ export class ZenithScreenView extends ScreenView {
         model.reset();
         this.reset();
       },
+      accessibleName: a11y.controls.resetAllStringProperty,
     });
     this.addChild(resetAllButton);
 

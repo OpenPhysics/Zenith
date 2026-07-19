@@ -312,7 +312,8 @@
       "trackSelected": "Track the selected object, keeping it centered as time passes",
       "measureTool": "Angular distance tool",
       "measureToolHelp": "Click two points or objects to measure the angle between them. Click empty sky to clear.",
-      "infoButton": "Info — how to use this simulation"
+      "infoButton": "Info — how to use this simulation",
+      "resetAll": "Reset All"
     }
   },
   "keyboardHelp": {
