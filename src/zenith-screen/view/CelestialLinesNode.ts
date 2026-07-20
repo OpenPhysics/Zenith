@@ -13,7 +13,7 @@
  * or (optionally) drops below the horizon.
  */
 
-import { DerivedProperty, PatternStringProperty } from "scenerystack/axon";
+import { DerivedProperty, PatternStringProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import type { Vector2 } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { Circle, Node, Path, Text } from "scenerystack/scenery";
@@ -46,6 +46,15 @@ export class CelestialLinesNode extends Node {
   private readonly measureEndpointA: Circle;
   private readonly measureEndpointB: Circle;
   private readonly measureLabel: Text;
+  /**
+   * Derived Properties backing {@link measureLabel}. Held so {@link dispose} can
+   * tear them down: `Node.dispose()` only detaches children, so the label Text's
+   * string source (a `PatternStringProperty` over `separationText`, which in turn
+   * listens to `model.measureSeparationDegProperty`) would otherwise keep the
+   * model and the localized measure string subscribed after the node is gone.
+   */
+  private readonly separationText: TReadOnlyProperty<string>;
+  private readonly measureSeparationPattern: TReadOnlyProperty<string>;
 
   public constructor(model: ZenithModel) {
     super({ pickable: false });
@@ -84,15 +93,19 @@ export class CelestialLinesNode extends Node {
       visible: false,
       pickable: false,
     });
-    const separationText = new DerivedProperty([model.measureSeparationDegProperty], (deg) =>
+    this.separationText = new DerivedProperty([model.measureSeparationDegProperty], (deg) =>
       deg === null ? "" : deg.toFixed(1),
     );
-    this.measureLabel = new Text(
-      new PatternStringProperty(StringManager.getInstance().getControls().measureSeparationStringProperty, {
-        deg: separationText,
-      }),
-      { font: MEASURE_LABEL_FONT, fill: measureColor, visible: false, pickable: false },
+    this.measureSeparationPattern = new PatternStringProperty(
+      StringManager.getInstance().getControls().measureSeparationStringProperty,
+      { deg: this.separationText },
     );
+    this.measureLabel = new Text(this.measureSeparationPattern, {
+      font: MEASURE_LABEL_FONT,
+      fill: measureColor,
+      visible: false,
+      pickable: false,
+    });
 
     this.children = [
       this.equatorPath,
@@ -103,6 +116,22 @@ export class CelestialLinesNode extends Node {
       this.measureEndpointB,
       this.measureLabel,
     ];
+  }
+
+  /**
+   * Disposes the measure label and its backing derived Properties before the
+   * base `Node.dispose()` detaches the remaining children. The label Text is
+   * disposed first so it stops forwarding to `measureSeparationPattern`; that
+   * pattern is then free of listeners and safe to dispose, and finally
+   * `separationText` (its sole remaining dependency) is released — dropping the
+   * subscription on `model.measureSeparationDegProperty`. Idempotent via the
+   * base class's disposed guard.
+   */
+  public override dispose(): void {
+    this.measureLabel.dispose();
+    this.measureSeparationPattern.dispose();
+    this.separationText.dispose();
+    super.dispose();
   }
 
   /** Projects a sequence of equatorial samples to a broken polyline shape. */

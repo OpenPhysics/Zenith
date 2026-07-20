@@ -470,17 +470,25 @@ export class PlanetariumSkyNode extends Node {
   }
 
   /**
-   * Detaches the 34 redraw-dependency lazyLinks before delegating to the base
-   * `Node.dispose()`, which recursively disposes every child Scenery node
-   * (paths, layers, `celestialLinesNode`, `planetsNode`) and unsubscribes the
-   * fill/stroke Properties wired at construction. Idempotent — safe to call
-   * twice. Always called by {@link ZenithScreenView.dispose} during teardown.
+   * Detaches the 34 redraw-dependency lazyLinks, then tears down the child
+   * subtree. `Node.dispose()` only *detaches* children (removeAllChildren) — it
+   * does not dispose them — so the label Text nodes (cardinals, star/planet
+   * names) and `celestialLinesNode`'s derived measure Properties would otherwise
+   * stay subscribed to the shared StringManager / model Properties after this
+   * node is gone. Disposing each child tree (the same walk as `disposeSubtree`,
+   * but without re-entering this override) releases those subscriptions.
+   * Idempotent — after the first pass there are no children and no disposers
+   * left. Always called by {@link ZenithScreenView.dispose} during teardown.
    */
   public override dispose(): void {
     for (const dispose of this.disposers.splice(0)) {
       dispose();
     }
+    const children = this.children;
     super.dispose();
+    for (const child of children) {
+      child.disposeSubtree();
+    }
   }
 
   /** Repositions the panel after layout changes. */
