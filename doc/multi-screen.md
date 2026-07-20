@@ -305,7 +305,8 @@ npm create openphysics-sim@latest my-sim
 # → clones the template, runs npm run rename automatically
 ```
 
-See `scripts/rename-sim.ts` for the rename logic you can reuse.
+The rename logic lives in the template's own `scripts/` directory — copy it
+into your initializer rather than depending on a per-sim copy.
 
 ### Monorepo / workspace setup
 

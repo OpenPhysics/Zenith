@@ -10,11 +10,11 @@
  * The Moon disc includes an unlit terminator overlay from Illumination / MoonPhase.
  */
 
-import type { TReadOnlyProperty } from "scenerystack/axon";
 import { clamp } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { Circle, Node, Path, Text } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
+import { bodyNameProperty } from "../../common/bodyName.js";
 import { discUnlitShape } from "../../common/sky/moonPhaseShape.js";
 import {
   angularDiameterToRadiusPx,
@@ -22,7 +22,6 @@ import {
   type PlanetBodyId,
 } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal } from "../../common/sky/SkyCoordinates.js";
-import { StringManager } from "../../i18n/StringManager.js";
 import ZenithColors from "../../ZenithColors.js";
 import { STAR_MAG_BRIGHT } from "../../ZenithConstants.js";
 import { SOLAR_SYSTEM_BODIES, type SolarSystemBodyVisual } from "../model/SolarSystemBodies.js";
@@ -85,30 +84,6 @@ export class PlanetariumPlanetsNode extends Node {
 
     this.model = model;
 
-    const bodies = StringManager.getInstance().getBodies();
-    const nameProperty = (id: PlanetBodyId): TReadOnlyProperty<string> => {
-      switch (id) {
-        case "sun":
-          return bodies.sunStringProperty;
-        case "moon":
-          return bodies.moonStringProperty;
-        case "mercury":
-          return bodies.mercuryStringProperty;
-        case "venus":
-          return bodies.venusStringProperty;
-        case "mars":
-          return bodies.marsStringProperty;
-        case "jupiter":
-          return bodies.jupiterStringProperty;
-        case "saturn":
-          return bodies.saturnStringProperty;
-        case "uranus":
-          return bodies.uranusStringProperty;
-        case "neptune":
-          return bodies.neptuneStringProperty;
-      }
-    };
-
     this.bodyNodes = SOLAR_SYSTEM_BODIES.map((visual) => {
       const disc = new Circle(visual.minDiscRadiusPx, {
         fill: BODY_COLOR[visual.id],
@@ -125,7 +100,7 @@ export class PlanetariumPlanetsNode extends Node {
         children: phaseShadow ? [disc, phaseShadow] : [disc],
         visible: false,
       });
-      const label = new Text(nameProperty(visual.id), {
+      const label = new Text(bodyNameProperty(visual.id), {
         font: LABEL_FONT,
         fill: ZenithColors.planetLabelColorProperty,
         visible: false,

@@ -56,6 +56,13 @@ import type { ZenithModel } from "../model/ZenithModel.js";
 import { CelestialLinesNode } from "./CelestialLinesNode.js";
 import { PlanetariumPlanetsNode } from "./PlanetariumPlanetsNode.js";
 import { SkyProjection } from "./SkyProjection.js";
+import { horizonAndGroundShapes } from "./sky-horizon.js";
+import {
+  bestEquatorialLabelPointForDec,
+  bestEquatorialLabelPointForRa,
+  placeAltitudeLabel,
+  placeAzimuthLabel,
+} from "./sky-labels.js";
 
 const LABEL_FONT = new PhetFont(11);
 const GRID_LABEL_FONT = new PhetFont({ size: 11, weight: "bold" });
@@ -65,14 +72,8 @@ const LABEL_OFFSET_X = 6;
 const LABEL_OFFSET_Y = -4;
 const MERIDIAN_ALT_STEP_DEG = 5;
 const EQUATORIAL_SAMPLE_STEP_DEG = 5;
-/** Prefer RA labels near the celestial equator when it is in the FOV. */
-const EQUATORIAL_RA_LABEL_DEC_PREF_DEG = 15;
-/** Screen inset so grid tick labels stay readable inside the panel. */
-const GRID_LABEL_EDGE_INSET_PX = 14;
-/** Altitude (degrees) at which azimuth tick labels sit, just above the horizon. */
-const AZ_GRID_LABEL_ALT_DEG = 4;
-/** Azimuth / horizon curves are sampled every this many degrees. */
-const HORIZON_SAMPLE_STEP_DEG = 2;
+/** Step size (degrees) for azimuth sweeps in the alt/az grid and meridian shapes. */
+const AZIMUTH_SWEEP_STEP_DEG = 2;
 /** Break a polyline when consecutive samples jump more than this fraction of the view. */
 const LINE_BREAK_FRACTION = 0.5;
 /** Extra radius (px) so the selection ring sits just outside the object disc. */
@@ -99,21 +100,6 @@ const formatDecTickLabel = (decDeg: number): string => {
 };
 
 const formatAltAzTickLabel = (deg: number): string => `${deg}°`;
-
-/** Circle (center + radius) through three points, or null when they are collinear. */
-const circleThroughPoints = (a: Vector2, b: Vector2, c: Vector2): { center: Vector2; radius: number } | null => {
-  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
-  if (Math.abs(d) < 1e-6) {
-    return null;
-  }
-  const a2 = a.x * a.x + a.y * a.y;
-  const b2 = b.x * b.x + b.y * b.y;
-  const c2 = c.x * c.x + c.y * c.y;
-  const ux = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
-  const uy = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
-  const center = new Vector2(ux, uy);
-  return { center, radius: center.distance(a) };
-};
 
 export type PlanetariumSkyNodeOptions = {
   bounds: Bounds2;
@@ -188,6 +174,13 @@ export class PlanetariumSkyNode extends Node {
    * dependency wiring below).
    */
   private skyDirty = false;
+
+  /**
+   * Teardown functions for the 34 lazyLinks wired in the constructor. Held so
+   * {@link dispose} can detach them; otherwise the linked model Properties would
+   * keep firing `skyDirty = true` into a node that's no longer in the scene.
+   */
+  private readonly disposers: (() => void)[] = [];
 
   public constructor(model: ZenithModel, options: PlanetariumSkyNodeOptions) {
     super({ pickable: true });
@@ -452,9 +445,11 @@ export class PlanetariumSkyNode extends Node {
     // then re-derives solar altitude), which would otherwise force a full redraw
     // — grids, constellations, and every catalog star — several times per frame.
     for (const property of redrawDependencies) {
-      property.lazyLink(() => {
+      const listener = (): void => {
         this.skyDirty = true;
-      });
+      };
+      property.lazyLink(listener);
+      this.disposers.push(() => property.unlink(listener));
     }
 
     this.clipArea = Shape.bounds(this.bounds2);
@@ -472,6 +467,20 @@ export class PlanetariumSkyNode extends Node {
       this.skyDirty = false;
       this.redraw();
     }
+  }
+
+  /**
+   * Detaches the 34 redraw-dependency lazyLinks before delegating to the base
+   * `Node.dispose()`, which recursively disposes every child Scenery node
+   * (paths, layers, `celestialLinesNode`, `planetsNode`) and unsubscribes the
+   * fill/stroke Properties wired at construction. Idempotent — safe to call
+   * twice. Always called by {@link ZenithScreenView.dispose} during teardown.
+   */
+  public override dispose(): void {
+    for (const dispose of this.disposers.splice(0)) {
+      dispose();
+    }
+    super.dispose();
   }
 
   /** Repositions the panel after layout changes. */
@@ -517,8 +526,9 @@ export class PlanetariumSkyNode extends Node {
    * selectable set when the Sun washes them out.
    */
   public listSelectableObjectsInView(): SelectedSkyObject[] {
-    // Called from interaction outside the redraw cycle; refresh the projection.
-    this.projection = this.buildProjection();
+    // `this.projection` is rebuilt once per frame in redraw() and an initial
+    // redraw runs in the constructor, so it is always current when interaction
+    // handlers fire — no need to rebuild it here on every selection cycle.
     const lat = this.model.latitudeProperty.value;
     const lst = this.model.localSiderealTimeHoursProperty.value;
     const hideBelowHorizon = this.model.showHorizonProperty.value;
@@ -686,7 +696,7 @@ export class PlanetariumSkyNode extends Node {
 
   private altAzGridShape(): Shape {
     const shape = new Shape();
-    const azSteps = Math.round(360 / HORIZON_SAMPLE_STEP_DEG);
+    const azSteps = Math.round(360 / AZIMUTH_SWEEP_STEP_DEG);
     // With the horizon (ground) hidden the lower hemisphere is in view, so sweep
     // the grid down below alt 0 as well to keep that region populated; otherwise
     // the grid stops at the horizon where the ground takes over.
@@ -695,7 +705,7 @@ export class PlanetariumSkyNode extends Node {
 
     // Altitude parallels: constant altitude, swept in azimuth.
     for (let alt = altMin; alt < ALT_AZ_GRID_ALT_MAX_DEG; alt += ALT_AZ_GRID_ALT_STEP_DEG) {
-      this.appendSampledCurve(shape, azSteps, (i) => this.projectAltAz(alt, i * HORIZON_SAMPLE_STEP_DEG));
+      this.appendSampledCurve(shape, azSteps, (i) => this.projectAltAz(alt, i * AZIMUTH_SWEEP_STEP_DEG));
     }
     // Azimuth meridians: constant azimuth, swept across the visible hemisphere(s).
     for (let az = 0; az < 360; az += ALT_AZ_GRID_AZ_STEP_DEG) {
@@ -714,39 +724,24 @@ export class PlanetariumSkyNode extends Node {
     for (const tick of this.horizontalTickLabels) {
       if (!show) {
         tick.label.visible = false;
-      } else if (tick.kind === "alt") {
-        this.placeAltitudeGridLabel(tick);
-      } else {
-        this.placeAzimuthGridLabel(tick);
+        continue;
       }
+      const placement =
+        tick.kind === "alt"
+          ? placeAltitudeLabel(this.projection, this.bounds2, tick.value)
+          : placeAzimuthLabel(this.projection, this.bounds2, tick.value);
+      if (!placement) {
+        tick.label.visible = false;
+        continue;
+      }
+      if (placement.align === "left") {
+        tick.label.left = placement.point.x + 4;
+        tick.label.centerY = placement.point.y;
+      } else {
+        tick.label.center = placement.point;
+      }
+      tick.label.visible = true;
     }
-  }
-
-  private placeAltitudeGridLabel(tick: HorizontalTickLabelNode): void {
-    const alt = tick.value;
-    // Skip the horizon (labeled by cardinals) and the zenith point.
-    if (alt <= 0 || alt >= ALT_AZ_GRID_ALT_MAX_DEG) {
-      tick.label.visible = false;
-      return;
-    }
-    const point = this.projection.project(alt, this.projection.lookAzimuthDeg);
-    if (!(point && this.isEquatorialLabelPointInBounds(point))) {
-      tick.label.visible = false;
-      return;
-    }
-    tick.label.left = point.x + 4;
-    tick.label.centerY = point.y;
-    tick.label.visible = true;
-  }
-
-  private placeAzimuthGridLabel(tick: HorizontalTickLabelNode): void {
-    const point = this.projection.project(AZ_GRID_LABEL_ALT_DEG, tick.value);
-    if (!(point && this.isEquatorialLabelPointInBounds(point))) {
-      tick.label.visible = false;
-      return;
-    }
-    tick.label.center = point;
-    tick.label.visible = true;
   }
 
   private meridianShape(): Shape {
@@ -851,6 +846,7 @@ export class PlanetariumSkyNode extends Node {
   /**
    * Places RA/Dec tick labels on visible grid lines. RA labels prefer the celestial
    * equator when it is in view; Dec labels prefer the sample nearest the FOV center.
+   * The placement math itself lives in `sky-labels.ts` (pure, unit-tested).
    */
   private redrawEquatorialGridLabels(): void {
     const show = this.model.showEquatorialGridProperty.value;
@@ -869,8 +865,16 @@ export class PlanetariumSkyNode extends Node {
     for (const tick of this.equatorialTickLabels) {
       const point =
         tick.kind === "ra"
-          ? this.bestEquatorialLabelPointForRa(tick.value, lat, lst, hideBelowHorizon, center)
-          : this.bestEquatorialLabelPointForDec(tick.value, lat, lst, hideBelowHorizon, center);
+          ? bestEquatorialLabelPointForRa(this.projection, this.bounds2, tick.value, lat, lst, hideBelowHorizon, center)
+          : bestEquatorialLabelPointForDec(
+              this.projection,
+              this.bounds2,
+              tick.value,
+              lat,
+              lst,
+              hideBelowHorizon,
+              center,
+            );
       if (!point) {
         tick.label.visible = false;
         continue;
@@ -878,81 +882,6 @@ export class PlanetariumSkyNode extends Node {
       tick.label.center = point;
       tick.label.visible = true;
     }
-  }
-
-  private projectEquatorialLabelSample(
-    raHours: number,
-    decDeg: number,
-    lat: number,
-    lst: number,
-    hideBelowHorizon: boolean,
-  ): Vector2 | null {
-    const { altDeg, azDeg } = equatorialToHorizontal(raHours, decDeg, lat, lst);
-    if (hideBelowHorizon && altDeg < 0) {
-      return null;
-    }
-    const point = this.projectAltAz(altDeg, azDeg);
-    if (!(point && this.isEquatorialLabelPointInBounds(point))) {
-      return null;
-    }
-    return point;
-  }
-
-  private isEquatorialLabelPointInBounds(point: Vector2): boolean {
-    const b = this.bounds2;
-    const inset = GRID_LABEL_EDGE_INSET_PX;
-    return (
-      point.x >= b.minX + inset && point.x <= b.maxX - inset && point.y >= b.minY + inset && point.y <= b.maxY - inset
-    );
-  }
-
-  private bestEquatorialLabelPointForRa(
-    raHours: number,
-    lat: number,
-    lst: number,
-    hideBelowHorizon: boolean,
-    center: Vector2,
-  ): Vector2 | null {
-    let best: Vector2 | null = null;
-    let bestScore = Number.POSITIVE_INFINITY;
-    for (let dec = EQUATORIAL_GRID_DEC_MIN_DEG; dec <= EQUATORIAL_GRID_DEC_MAX_DEG; dec += EQUATORIAL_SAMPLE_STEP_DEG) {
-      const point = this.projectEquatorialLabelSample(raHours, dec, lat, lst, hideBelowHorizon);
-      if (!point) {
-        continue;
-      }
-      // Prefer samples near Dec = 0 so hour labels sit on the celestial equator when visible.
-      const equatorPenalty = Math.abs(dec) / EQUATORIAL_RA_LABEL_DEC_PREF_DEG;
-      const score = point.distanceSquared(center) + equatorPenalty * equatorPenalty * 400;
-      if (score < bestScore) {
-        bestScore = score;
-        best = point;
-      }
-    }
-    return best;
-  }
-
-  private bestEquatorialLabelPointForDec(
-    decDeg: number,
-    lat: number,
-    lst: number,
-    hideBelowHorizon: boolean,
-    center: Vector2,
-  ): Vector2 | null {
-    let best: Vector2 | null = null;
-    let bestScore = Number.POSITIVE_INFINITY;
-    for (let raStep = 0; raStep < 360; raStep += EQUATORIAL_SAMPLE_STEP_DEG) {
-      const ra = (raStep / 360) * 24;
-      const point = this.projectEquatorialLabelSample(ra, decDeg, lat, lst, hideBelowHorizon);
-      if (!point) {
-        continue;
-      }
-      const score = point.distanceSquared(center);
-      if (score < bestScore) {
-        bestScore = score;
-        best = point;
-      }
-    }
-    return best;
   }
 
   private constellationShape(): Shape {
@@ -1230,7 +1159,10 @@ export class PlanetariumSkyNode extends Node {
 
     const showHorizon = this.model.showHorizonProperty.value;
     if (showHorizon) {
-      const { horizon, ground } = this.horizonAndGroundShapes();
+      const { horizon, ground } = horizonAndGroundShapes(
+        (altDeg, azDeg) => this.projection.project(altDeg, azDeg),
+        this.bounds2,
+      );
       this.groundFill.fill = colors.ground;
       this.groundFill.shape = ground;
       this.groundFill.visible = ground !== null;
@@ -1240,67 +1172,6 @@ export class PlanetariumSkyNode extends Node {
       this.groundFill.visible = false;
       this.horizonLine.visible = false;
     }
-  }
-
-  /**
-   * The horizon curve and the ground region below it, in view pixels. The
-   * horizon great circle projects (stereographically) to a circle on screen, so
-   * we fit that circle from horizon samples and fill the side away from the view
-   * center as ground. Near a level view the circle degenerates to a line, so we
-   * fall back to a half-plane below the horizon. Returns nulls when the horizon
-   * is entirely out of view.
-   */
-  private horizonAndGroundShapes(): { horizon: Shape | null; ground: Shape | null } {
-    const b = this.bounds2;
-    const points: Vector2[] = [];
-    for (let az = 0; az < 360; az += HORIZON_SAMPLE_STEP_DEG) {
-      const point = this.projectAltAz(0, az);
-      if (point) {
-        points.push(point);
-      }
-    }
-    if (points.length < 3) {
-      return { horizon: null, ground: null };
-    }
-
-    const n = points.length;
-    const diagonal = Math.hypot(b.width, b.height);
-    const circle = circleThroughPoints(
-      points[0] as Vector2,
-      points[(n / 3) | 0] as Vector2,
-      points[((2 * n) / 3) | 0] as Vector2,
-    );
-
-    if (circle && circle.radius < 8 * diagonal) {
-      const horizon = Shape.circle(circle.center.x, circle.center.y, circle.radius);
-      // The view center's altitude is the (non-negative) look altitude, so it is
-      // on the sky side; ground is the opposite side of the horizon circle.
-      const skyIsInside = circle.center.distance(b.center) < circle.radius;
-      const disc = Shape.circle(circle.center.x, circle.center.y, circle.radius);
-      const ground = skyIsInside ? Shape.bounds(b).shapeDifference(disc) : disc;
-      return { horizon, ground };
-    }
-
-    // Level-view fallback: horizon ≈ a straight line; fill the half-plane below.
-    const p1 = points[0] as Vector2;
-    const p2 = points[(n / 2) | 0] as Vector2;
-    if (p1.distance(p2) < 1e-3) {
-      return { horizon: null, ground: null };
-    }
-    const dir = p2.minus(p1).normalized();
-    const normal = new Vector2(-dir.y, dir.x);
-    const groundNormal = normal.dot(b.center.minus(p1)) > 0 ? normal.negated() : normal;
-    const big = 4 * diagonal;
-    const a = p1.minus(dir.timesScalar(big));
-    const c = p2.plus(dir.timesScalar(big));
-    const ground = new Shape()
-      .moveToPoint(a)
-      .lineToPoint(c)
-      .lineToPoint(c.plus(groundNormal.timesScalar(big)))
-      .lineToPoint(a.plus(groundNormal.timesScalar(big)))
-      .close();
-    const horizon = new Shape().moveToPoint(a).lineToPoint(c);
-    return { horizon, ground };
   }
 
   private redraw(): void {

@@ -239,6 +239,15 @@ export class ZenithModel implements TModel {
    */
   private trackingLook = false;
 
+  /**
+   * Teardown functions for the lazyLinks and the tracker Multilink created in the
+   * constructor. Held so {@link dispose} can detach them; without this, model
+   * Properties would keep firing into stale listeners after the model is torn down.
+   * The four {@link DerivedProperty}s (measureSeparation, timeRate, skySnapshot,
+   * solarAltitude) are disposed directly by reference.
+   */
+  private readonly disposers: (() => void)[] = [];
+
   public constructor(preferences: ZenithPreferencesModel) {
     // Startup values from public query parameters (teacher deep-links).
     const startLat = zenithQueryParameters["lat"];
@@ -279,13 +288,15 @@ export class ZenithModel implements TModel {
     this.showHorizonProperty = new BooleanProperty(DEFAULT_SHOW_HORIZON);
     // Showing the horizon again re-clamps a below-horizon view back up to it.
     // Guarded so this automatic re-clamp isn't mistaken for a manual pan.
-    this.showHorizonProperty.lazyLink((show) => {
+    const onShowHorizon = (show: boolean): void => {
       if (show) {
         this.trackingLook = true;
         this.setLookAltitude(this.lookAltitudeDegProperty.value);
         this.trackingLook = false;
       }
-    });
+    };
+    this.showHorizonProperty.lazyLink(onShowHorizon);
+    this.disposers.push(() => this.showHorizonProperty.unlink(onShowHorizon));
     this.showAtmosphereProperty = new BooleanProperty(DEFAULT_SHOW_ATMOSPHERE);
     this.showPlanetsProperty = new BooleanProperty(DEFAULT_SHOW_PLANETS);
     this.trueScaleBodiesProperty = new BooleanProperty(DEFAULT_TRUE_SCALE_BODIES);
@@ -331,10 +342,14 @@ export class ZenithModel implements TModel {
     );
 
     // Keep LST aligned when the user changes longitude without advancing time.
-    this.longitudeProperty.lazyLink(() => this.syncLocalSiderealTime());
-    this.civilTimeMsProperty.lazyLink(() => this.syncLocalSiderealTime());
+    const onLongitude = (): void => this.syncLocalSiderealTime();
+    const onCivilTime = (): void => this.syncLocalSiderealTime();
+    this.longitudeProperty.lazyLink(onLongitude);
+    this.civilTimeMsProperty.lazyLink(onCivilTime);
+    this.disposers.push(() => this.longitudeProperty.unlink(onLongitude));
+    this.disposers.push(() => this.civilTimeMsProperty.unlink(onCivilTime));
 
-    this.locationPresetProperty.lazyLink((preset) => {
+    const onLocationPreset = (preset: LocationPreset): void => {
       if (preset === LocationPreset.CUSTOM) {
         return;
       }
@@ -346,9 +361,11 @@ export class ZenithModel implements TModel {
       this.latitudeProperty.value = coords.latitudeDeg;
       this.longitudeProperty.value = coords.longitudeDeg;
       this.applyingPreset = false;
-    });
+    };
+    this.locationPresetProperty.lazyLink(onLocationPreset);
+    this.disposers.push(() => this.locationPresetProperty.unlink(onLocationPreset));
 
-    this.epochPresetProperty.lazyLink((preset) => {
+    const onEpochPreset = (preset: EpochPreset): void => {
       if (preset === EpochPreset.CUSTOM) {
         return;
       }
@@ -360,7 +377,9 @@ export class ZenithModel implements TModel {
       this.civilTimeMsProperty.value = civilMs;
       this.applyingPreset = false;
       this.syncLocalSiderealTime();
-    });
+    };
+    this.epochPresetProperty.lazyLink(onEpochPreset);
+    this.disposers.push(() => this.epochPresetProperty.unlink(onEpochPreset));
 
     const markLocationCustom = (): void => {
       if (!this.applyingPreset) {
@@ -369,17 +388,21 @@ export class ZenithModel implements TModel {
     };
     this.latitudeProperty.lazyLink(markLocationCustom);
     this.longitudeProperty.lazyLink(markLocationCustom);
+    this.disposers.push(() => this.latitudeProperty.unlink(markLocationCustom));
+    this.disposers.push(() => this.longitudeProperty.unlink(markLocationCustom));
 
-    this.civilTimeMsProperty.lazyLink(() => {
+    const markEpochCustom = (): void => {
       if (!this.applyingPreset) {
         this.epochPresetProperty.value = EpochPreset.CUSTOM;
       }
-    });
+    };
+    this.civilTimeMsProperty.lazyLink(markEpochCustom);
+    this.disposers.push(() => this.civilTimeMsProperty.unlink(markEpochCustom));
 
     // Keep the look centered on the selected object while tracking. Fires on link
     // so enabling Track re-centers immediately, then re-fires as time / location
     // moves the object across the sky.
-    Multilink.multilink(
+    const trackerMultilink = Multilink.multilink(
       [
         this.trackSelectedObjectProperty,
         this.selectedObjectProperty,
@@ -401,6 +424,7 @@ export class ZenithModel implements TModel {
         this.trackingLook = false;
       },
     );
+    this.disposers.push(() => trackerMultilink.dispose());
 
     // A manual pan (drag / arrow / quick-look) cancels tracking; the tracker's own
     // writes are guarded by trackingLook so they don't cancel it.
@@ -411,6 +435,8 @@ export class ZenithModel implements TModel {
     };
     this.lookAzimuthDegProperty.lazyLink(cancelTrackingOnManualLook);
     this.lookAltitudeDegProperty.lazyLink(cancelTrackingOnManualLook);
+    this.disposers.push(() => this.lookAzimuthDegProperty.unlink(cancelTrackingOnManualLook));
+    this.disposers.push(() => this.lookAltitudeDegProperty.unlink(cancelTrackingOnManualLook));
   }
 
   /** Steps the playback rate one notch faster / toward forward (undoes a decrease). */
@@ -581,5 +607,26 @@ export class ZenithModel implements TModel {
       return;
     }
     this.advanceCivilTimeHours(dt * CIVIL_HOURS_PER_SIM_SECOND * this.timeRateProperty.value);
+  }
+
+  /**
+   * Tears down internal listeners and derived state so the model can be
+   * garbage-collected after its screen closes. Idempotent — safe to call twice.
+   * The preference-backed Properties (showPlanetLabels, showStarLabels,
+   * showConstellations, deepStarCatalog) are owned by ZenithPreferencesModel and
+   * are NOT disposed here.
+   */
+  public dispose(): void {
+    // Detach lazyLinks / Multilink first so DerivedProperty.dispose() won't see
+    // live internal subscribers (it throws when disposed with external listeners).
+    for (const dispose of this.disposers.splice(0)) {
+      dispose();
+    }
+    this.measureSeparationDegProperty.dispose();
+    this.timeRateProperty.dispose();
+    this.solarAltitudeDegProperty.dispose();
+    // skySnapshotProperty is a dependency of solarAltitudeDegProperty, so dispose it last.
+    this.skySnapshotProperty.dispose();
+    this.timer.dispose();
   }
 }

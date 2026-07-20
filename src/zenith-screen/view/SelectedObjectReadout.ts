@@ -17,8 +17,10 @@ import {
 import { Node, Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
 import { Checkbox } from "scenerystack/sun";
+import { bodyNameProperty } from "../../common/bodyName.js";
+import { formatDeg, formatDuration, formatHours, formatMag } from "../../common/format.js";
 import { formatLocalSolarTime } from "../../common/sky/civilDateTime.js";
-import { bodyElongation, constellationAt, type PlanetBodyId } from "../../common/sky/PlanetEphemeris.js";
+import { bodyElongation, constellationAt } from "../../common/sky/PlanetEphemeris.js";
 import { equatorialToHorizontal, riseSetInfo, solarHoursUntilLst } from "../../common/sky/SkyCoordinates.js";
 import { ZENITH_CHECKBOX_OPTIONS } from "../../common/ZenithControlOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
@@ -29,10 +31,6 @@ import type { ZenithModel } from "../model/ZenithModel.js";
 
 const MS_PER_HOUR = 3600 * 1000;
 
-const formatHours = (hours: number): string => hours.toFixed(2);
-const formatDeg = (deg: number): string => deg.toFixed(1);
-const formatMag = (mag: number): string => mag.toFixed(2);
-
 type SelectionCoords = {
   kind: "star" | "planet" | "none";
   mag: number;
@@ -42,32 +40,6 @@ type SelectionCoords = {
   azDeg: number;
 };
 
-const resolvePlanetName = (
-  id: PlanetBodyId,
-  bodies: ReturnType<StringManager["getBodies"]>,
-): TReadOnlyProperty<string> => {
-  switch (id) {
-    case "sun":
-      return bodies.sunStringProperty;
-    case "moon":
-      return bodies.moonStringProperty;
-    case "mercury":
-      return bodies.mercuryStringProperty;
-    case "venus":
-      return bodies.venusStringProperty;
-    case "mars":
-      return bodies.marsStringProperty;
-    case "jupiter":
-      return bodies.jupiterStringProperty;
-    case "saturn":
-      return bodies.saturnStringProperty;
-    case "uranus":
-      return bodies.uranusStringProperty;
-    case "neptune":
-      return bodies.neptuneStringProperty;
-  }
-};
-
 const resolveStarName = (id: string, stars: ReturnType<StringManager["getStars"]>): TReadOnlyProperty<string> => {
   const key = `${id}StringProperty` as keyof typeof stars;
   return stars[key] as TReadOnlyProperty<string>;
@@ -75,7 +47,6 @@ const resolveStarName = (id: string, stars: ReturnType<StringManager["getStars"]
 
 const objectName = (
   selected: SelectedSkyObject | null,
-  bodies: ReturnType<StringManager["getBodies"]>,
   stars: ReturnType<StringManager["getStars"]>,
   noneLabel: string,
 ): string => {
@@ -85,7 +56,7 @@ const objectName = (
   if (selected.kind === "star") {
     return resolveStarName(selected.id, stars).value;
   }
-  return resolvePlanetName(selected.id, bodies).value;
+  return bodyNameProperty(selected.id).value;
 };
 
 const buildCoords = (
@@ -110,14 +81,6 @@ const buildCoords = (
     altDeg,
     azDeg,
   };
-};
-
-/** Formats a positive duration in hours as "Hh Mm" (or "Mm" under an hour). */
-const formatDuration = (hours: number): string => {
-  const totalMin = Math.max(0, Math.round(hours * 60));
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
 type Visibility = {
@@ -206,16 +169,15 @@ export class SelectedObjectReadout extends Node {
     const stringManager = StringManager.getInstance();
     const controls = stringManager.getControls();
     const a11y = stringManager.getA11yStrings();
-    const bodies = stringManager.getBodies();
     const stars = stringManager.getStars();
     const labelFont = new PhetFont(CONTROL_FONT_SIZE);
     const maxWidth = CONTROL_PANEL_WIDTH - 40;
 
     const nameProperty = new Property(
-      objectName(model.selectedObjectProperty.value, bodies, stars, controls.selectedNoneStringProperty.value),
+      objectName(model.selectedObjectProperty.value, stars, controls.selectedNoneStringProperty.value),
     );
     Multilink.multilink([model.selectedObjectProperty, controls.selectedNoneStringProperty], (selected, noneLabel) => {
-      nameProperty.value = objectName(selected, bodies, stars, noneLabel);
+      nameProperty.value = objectName(selected, stars, noneLabel);
     });
 
     const coordsProperty = new DerivedProperty(
