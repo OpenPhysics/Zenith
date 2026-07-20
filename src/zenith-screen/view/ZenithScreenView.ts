@@ -6,6 +6,7 @@
  */
 
 import { BooleanProperty, PatternStringProperty } from "scenerystack/axon";
+import type { Bounds2 } from "scenerystack/dot";
 import { GridBox, HBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
 import { InfoButton, NumberControl, PhetFont, ResetAllButton } from "scenerystack/scenery-phet";
 import type { ScreenViewOptions } from "scenerystack/sim";
@@ -65,6 +66,12 @@ export class ZenithScreenView extends ScreenView {
   private readonly controlPanel: AccordionBox;
   private readonly timePanel: TimeControlPanel;
   private readonly locationPanel: AccordionBox;
+
+  /**
+   * Teardown callbacks for constructor-time links (visibleBounds, panel bounds,
+   * planetarium interaction). Run from {@link dispose}.
+   */
+  private readonly disposers: (() => void)[] = [];
 
   public constructor(model: ZenithModel, options?: ScreenViewOptions) {
     super({
@@ -402,12 +409,13 @@ export class ZenithScreenView extends ScreenView {
     this.skyNode = new PlanetariumSkyNode(model, {
       bounds: this.visibleBoundsProperty.value.copy(),
     });
-    attachPlanetariumInteraction(this.skyNode, {
+    const interaction = attachPlanetariumInteraction(this.skyNode, {
       model,
       skyNode: this.skyNode,
       accessibleNameProperty: a11y.controls.skyViewStringProperty,
       accessibleHelpTextProperty: a11y.controls.skyViewHelpStringProperty,
     });
+    this.disposers.push(interaction.dispose);
     this.addChild(this.skyNode);
 
     // Selection readout sits over the sky (bottom-left).
@@ -510,11 +518,13 @@ export class ZenithScreenView extends ScreenView {
     };
 
     // Sky + background always fill the window (including past layoutBounds).
-    this.visibleBoundsProperty.link((visibleBounds) => {
+    const onVisibleBounds = (visibleBounds: Bounds2): void => {
       backgroundRect.setRectBounds(visibleBounds);
       this.skyNode.setViewBounds(visibleBounds);
       updateChromeLayout();
-    });
+    };
+    this.visibleBoundsProperty.link(onVisibleBounds);
+    this.disposers.push(() => this.visibleBoundsProperty.unlink(onVisibleBounds));
 
     // Keep the stacked panels and Reset All clear when an accordion expands/collapses.
     this.locationPanel.boundsProperty.lazyLink(updateChromeLayout);
@@ -526,6 +536,11 @@ export class ZenithScreenView extends ScreenView {
     // an object is selected and more rows appear) so it grows upward, not under
     // the navigation bar.
     selectionPanel.boundsProperty.lazyLink(updateChromeLayout);
+    this.disposers.push(() => this.locationPanel.boundsProperty.unlink(updateChromeLayout));
+    this.disposers.push(() => this.timePanel.boundsProperty.unlink(updateChromeLayout));
+    this.disposers.push(() => this.controlPanel.boundsProperty.unlink(updateChromeLayout));
+    this.disposers.push(() => this.searchNode.boundsProperty.unlink(updateChromeLayout));
+    this.disposers.push(() => selectionPanel.boundsProperty.unlink(updateChromeLayout));
 
     // ── Accessibility: keyboard / reading traversal order ─────────────────────
     // AccordionBox owns PDOM order for its content; include the box as a whole.
@@ -548,6 +563,13 @@ export class ZenithScreenView extends ScreenView {
     this.locationPanel.reset();
     this.timePanel.reset();
     this.controlPanel.reset();
+  }
+
+  public override dispose(): void {
+    for (const dispose of this.disposers.splice(0)) {
+      dispose();
+    }
+    super.dispose();
   }
 
   public override step(_dt: number): void {
