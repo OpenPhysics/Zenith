@@ -609,6 +609,9 @@ export class ZenithModel implements TModel {
     this.advanceCivilTimeHours(dt * CIVIL_HOURS_PER_SIM_SECOND * this.timeRateProperty.value);
   }
 
+  /** Set by {@link dispose}; guards against double-dispose of DerivedProperties. */
+  private disposed = false;
+
   /**
    * Tears down internal listeners and derived state so the model can be
    * garbage-collected after its screen closes. Idempotent — safe to call twice.
@@ -617,6 +620,11 @@ export class ZenithModel implements TModel {
    * are NOT disposed here.
    */
   public dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+
     // Detach lazyLinks / Multilink first so DerivedProperty.dispose() won't see
     // live internal subscribers (it throws when disposed with external listeners).
     for (const dispose of this.disposers.splice(0)) {

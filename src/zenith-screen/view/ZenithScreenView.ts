@@ -565,11 +565,18 @@ export class ZenithScreenView extends ScreenView {
     this.controlPanel.reset();
   }
 
+  /**
+   * Detaches constructor-time links and tears down the sky node. Does not call
+   * `super.dispose()` — joist `ScreenView` is intentionally non-disposable
+   * (`isDisposable` is omitted from `ScreenViewOptions`, and its `setPDOMOrder`
+   * override throws during ParallelDOM teardown). The subscription surface is
+   * what fuzz / unit tests need released; the ScreenView shell is sim-lifetime.
+   */
   public override dispose(): void {
     for (const dispose of this.disposers.splice(0)) {
       dispose();
     }
-    super.dispose();
+    this.skyNode.dispose();
   }
 
   public override step(_dt: number): void {
