@@ -3,6 +3,7 @@
  */
 
 import { Bounds2 } from "scenerystack/dot";
+import { Text } from "scenerystack/scenery";
 import { describe, expect, it } from "vitest";
 import { TimeModel } from "../src/common/TimeModel.js";
 import { ZenithPreferencesModel } from "../src/preferences/ZenithPreferencesModel.js";
@@ -129,6 +130,29 @@ describe("Memory leak regression", () => {
       }
       await forceGC();
       expect(refs.filter((r) => r.deref() !== undefined).length).toBe(0);
+    });
+
+    it("disposes its child label subtree (no StringManager retention)", async () => {
+      // `Node.dispose()` only detaches children; the label Text nodes forward to
+      // shared StringManager Properties. If the subtree is not disposed, a
+      // cardinal label stays retained by that (sim-lifetime) singleton and never
+      // collects — even though the sky node itself detaches and collects. The
+      // sky node is scoped inside the helper so the label's only possible
+      // retainer is the StringManager subscription.
+      const labelRef = (() => {
+        const preferences = new ZenithPreferencesModel();
+        const model = new ZenithModel(preferences);
+        model.timer.isPlayingProperty.value = false;
+        const skyNode = new PlanetariumSkyNode(model, { bounds: new Bounds2(0, 0, 800, 800) });
+        const labelChild = skyNode.children.find((child): child is Text => child instanceof Text);
+        expect(labelChild).toBeDefined();
+        const ref = new WeakRef<object>(labelChild as object);
+        skyNode.dispose();
+        model.dispose();
+        return ref;
+      })();
+      await forceGC(labelRef);
+      expect(labelRef.deref()).toBeUndefined();
     });
   });
 
