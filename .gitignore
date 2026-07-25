@@ -40,3 +40,6 @@ Thumbs.db
 
 # Local reference clones (e.g. Stellarium Web Engine) — not part of the sim bundle
 reference/
+
+# CI / local npm audit artifact (must not be linted)
+audit.json
