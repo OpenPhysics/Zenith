@@ -9,6 +9,7 @@ import { TimeModel } from "../src/common/TimeModel.js";
 import { ZenithPreferencesModel } from "../src/preferences/ZenithPreferencesModel.js";
 import { ZenithModel } from "../src/zenith-screen/model/ZenithModel.js";
 import { PlanetariumSkyNode } from "../src/zenith-screen/view/PlanetariumSkyNode.js";
+import { SelectedObjectReadout } from "../src/zenith-screen/view/SelectedObjectReadout.js";
 import { ZenithScreenView } from "../src/zenith-screen/view/ZenithScreenView.js";
 
 async function forceGC(earlyExitRef?: WeakRef<object>): Promise<void> {
@@ -153,6 +154,50 @@ describe("Memory leak regression", () => {
       })();
       await forceGC(labelRef);
       expect(labelRef.deref()).toBeUndefined();
+    });
+  });
+
+  describe("SelectedObjectReadout", () => {
+    it("is collected after dispose", async () => {
+      const ref = (() => {
+        const preferences = new ZenithPreferencesModel();
+        const model = new ZenithModel(preferences);
+        model.timer.isPlayingProperty.value = false;
+        const readout = new SelectedObjectReadout(model);
+        const weak = new WeakRef<object>(readout);
+        readout.dispose();
+        model.dispose();
+        return weak;
+      })();
+      await forceGC(ref);
+      expect(ref.deref()).toBeUndefined();
+    });
+
+    it("stops observing the model after dispose", () => {
+      const preferences = new ZenithPreferencesModel();
+      const model = new ZenithModel(preferences);
+      model.timer.isPlayingProperty.value = false;
+      const readout = new SelectedObjectReadout(model);
+      readout.dispose();
+
+      // The readout derives coordinates, rise/set times and the constellation
+      // name from these; after dispose none of that may still be listening.
+      expect(() => {
+        model.civilTimeMsProperty.value += 3_600_000;
+        model.latitudeProperty.value = -33.9;
+        model.selectedObjectProperty.value = null;
+      }).not.toThrow();
+
+      model.dispose();
+    });
+
+    it("double dispose() does not throw", () => {
+      const preferences = new ZenithPreferencesModel();
+      const model = new ZenithModel(preferences);
+      const readout = new SelectedObjectReadout(model);
+      readout.dispose();
+      expect(() => readout.dispose()).not.toThrow();
+      model.dispose();
     });
   });
 

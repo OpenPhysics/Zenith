@@ -72,12 +72,6 @@ export const LONGITUDE_RANGE = new Range(-180, 180);
 export const LOCATION_STEP_DEGREES = 5;
 
 /**
- * Default local sidereal time is derived from civil time + longitude at reset;
- * this constant is only used as a fallback before the first sync.
- */
-export const DEFAULT_LOCAL_SIDEREAL_TIME_HOURS = 0;
-
-/**
  * Hours of civil (and roughly sidereal) time advanced per second of simulation
  * clock at the base `1×` rate. Real-time: one wall-clock second advances civil
  * time by one second (1/3600 h). The {@link TIME_RATE_MULTIPLIERS} ladder scales
@@ -113,6 +107,18 @@ export const CIVIL_DAY_RANGE = new Range(1, 31);
 
 /** UTC hour-of-day range for the civil date jump UI. */
 export const CIVIL_HOUR_RANGE = new Range(0, 23);
+
+/**
+ * Supported span of civil time in UTC milliseconds, derived from
+ * {@link CIVIL_YEAR_RANGE}. This is the authoritative bound: the date-jump
+ * spinners, the `date` deep-link parameter, and clock playback are all held
+ * inside it, so the Year spinner can never display a value outside its own
+ * range and a shared link can never resolve to an epoch the UI cannot express.
+ */
+export const CIVIL_TIME_MS_RANGE = new Range(
+  Date.UTC(CIVIL_YEAR_RANGE.min, 0, 1, 0, 0, 0),
+  Date.UTC(CIVIL_YEAR_RANGE.max, 11, 31, 23, 0, 0),
+);
 
 /**
  * Discrete time-rate ladder: each value multiplies the base educational rate
@@ -306,11 +312,11 @@ ZenithNamespace.register("ZenithConstants", {
   CONTROL_PANEL_WIDTH,
   DEFAULT_LATITUDE_DEG,
   DEFAULT_LONGITUDE_DEG,
-  DEFAULT_LOCAL_SIDEREAL_TIME_HOURS,
   CIVIL_HOURS_PER_SIM_SECOND,
   HOURS_PER_SIDEREAL_DAY,
   DEFAULT_CIVIL_TIME_MS,
   CIVIL_YEAR_RANGE,
+  CIVIL_TIME_MS_RANGE,
   CIVIL_MONTH_RANGE,
   CIVIL_DAY_RANGE,
   CIVIL_HOUR_RANGE,

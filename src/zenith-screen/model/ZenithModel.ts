@@ -34,6 +34,7 @@ import type { ZenithPreferencesModel } from "../../preferences/ZenithPreferences
 import zenithQueryParameters, { resolveCivilTimeMsFromQuery } from "../../preferences/zenithQueryParameters.js";
 import {
   CIVIL_HOURS_PER_SIM_SECOND,
+  CIVIL_TIME_MS_RANGE,
   DEFAULT_CIVIL_TIME_MS,
   DEFAULT_LATITUDE_DEG,
   DEFAULT_LONGITUDE_DEG,
@@ -65,6 +66,7 @@ import { DEFAULT_LOCATION_PRESET, LOCATION_PRESET_COORDS, LocationPreset } from 
 import type { SelectedSkyObject } from "./SelectedSkyObject.js";
 
 const MS_PER_HOUR = 3600 * 1000;
+const MS_PER_MINUTE = 60 * 1000;
 
 /**
  * Single instantaneous ephemeris for the whole solar system at one civil time /
@@ -269,7 +271,7 @@ export class ZenithModel implements TModel {
     this.longitudeProperty = new NumberProperty(startLon, {
       range: LONGITUDE_RANGE,
     });
-    this.civilTimeMsProperty = new NumberProperty(startCivilMs);
+    this.civilTimeMsProperty = new NumberProperty(CIVIL_TIME_MS_RANGE.constrainValue(startCivilMs));
     this.localSiderealTimeHoursProperty = new NumberProperty(localSiderealTimeHours(startCivilMs, startLon));
     this.lookAzimuthDegProperty = new NumberProperty(DEFAULT_LOOK_AZIMUTH_DEG);
     this.lookAltitudeDegProperty = new NumberProperty(DEFAULT_LOOK_ALTITUDE_DEG, {
@@ -391,10 +393,24 @@ export class ZenithModel implements TModel {
     this.disposers.push(() => this.latitudeProperty.unlink(markLocationCustom));
     this.disposers.push(() => this.longitudeProperty.unlink(markLocationCustom));
 
-    const markEpochCustom = (): void => {
-      if (!this.applyingPreset) {
-        this.epochPresetProperty.value = EpochPreset.CUSTOM;
+    // Leaving a named epoch marks it CUSTOM — but only once the clock has moved
+    // far enough for the UTC readout (minute precision) to disagree with the
+    // preset. Without that tolerance the timer, which starts playing, advances
+    // civil time by a few milliseconds on the very first step and flips the combo
+    // to "Custom time" while the readout still shows the preset epoch — so the
+    // selector could never display a preset, not even right after one is chosen.
+    const markEpochCustom = (civilMs: number): void => {
+      if (this.applyingPreset) {
+        return;
       }
+      const preset = this.epochPresetProperty.value;
+      if (preset !== EpochPreset.CUSTOM) {
+        const presetMs = EPOCH_PRESET_CIVIL_MS.get(preset);
+        if (presetMs !== undefined && Math.abs(civilMs - presetMs) < MS_PER_MINUTE) {
+          return;
+        }
+      }
+      this.epochPresetProperty.value = EpochPreset.CUSTOM;
     };
     this.civilTimeMsProperty.lazyLink(markEpochCustom);
     this.disposers.push(() => this.civilTimeMsProperty.unlink(markEpochCustom));
@@ -456,7 +472,17 @@ export class ZenithModel implements TModel {
 
   /** Jumps civil time to the observer's real-world current instant ("Now"). */
   public setToNow(): void {
-    this.civilTimeMsProperty.value = Date.now();
+    this.setCivilTimeMs(Date.now());
+  }
+
+  /**
+   * Sets civil time, held inside {@link CIVIL_TIME_MS_RANGE}. Every write that
+   * can leave the supported span (playback, scrubbing, "Now") goes through here,
+   * so the clock stops at the range edge rather than drifting to an epoch the
+   * date-jump spinners cannot represent.
+   */
+  public setCivilTimeMs(civilTimeMs: number): void {
+    this.civilTimeMsProperty.value = CIVIL_TIME_MS_RANGE.constrainValue(civilTimeMs);
   }
 
   /**
@@ -503,7 +529,7 @@ export class ZenithModel implements TModel {
 
   /** Advances civil time by `hours` (educational scrub / Ctrl-drag). */
   public advanceCivilTimeHours(hours: number): void {
-    this.civilTimeMsProperty.value += hours * MS_PER_HOUR;
+    this.setCivilTimeMs(this.civilTimeMsProperty.value + hours * MS_PER_HOUR);
     this.syncLocalSiderealTime();
   }
 

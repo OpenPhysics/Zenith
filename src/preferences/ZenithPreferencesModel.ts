@@ -42,12 +42,9 @@ export class ZenithPreferencesModel {
     });
   }
 
-  public reset(): void {
-    this.showStarLabelsProperty.reset();
-    this.showConstellationsProperty.reset();
-    this.showPlanetLabelsProperty.reset();
-    this.deepStarCatalogProperty.reset();
-  }
+  // Deliberately no reset(): these overlay toggles are preference-backed and
+  // outlive Reset All (see ZenithModel.reset). An unused reset() here would
+  // invite wiring it into Reset All and silently breaking that contract.
 }
 
 ZenithNamespace.register("ZenithPreferencesModel", ZenithPreferencesModel);

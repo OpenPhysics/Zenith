@@ -20,6 +20,7 @@ import { Shape } from "scenerystack/kite";
 import { ModelViewTransform2 } from "scenerystack/phetcommon";
 import {
   Circle,
+  Color,
   DragListener,
   KeyboardListener,
   Line,
@@ -215,7 +216,8 @@ export class ObserverLocationNode extends Node {
     const pin = new Node({
       cursor: "grab",
       children: [
-        new Circle(12, { fill: "rgba(0,0,0,0)" }),
+        // Transparent (not null) so the disk still hit-tests as a grab target.
+        new Circle(12, { fill: Color.TRANSPARENT }),
         new Line(-9, 0, 9, 0, { stroke: ZenithColors.locationPinColorProperty, lineWidth: 1.5 }),
         new Line(0, -9, 0, 9, { stroke: ZenithColors.locationPinColorProperty, lineWidth: 1.5 }),
         new Circle(3.5, { fill: ZenithColors.locationPinColorProperty, stroke: "#ffffff", lineWidth: 0.75 }),

@@ -68,7 +68,9 @@ works across many longitudes):
 - June / December solstices
 
 Year / month / day / hour controls jump to any UTC civil moment in range
-(1900–2100).
+(1900–2100). That range bounds civil time everywhere: playback stops at either
+end rather than running past it, and a `date` deep link outside it falls back to
+the default epoch instead of being silently clamped to the boundary.
 
 ### Default sky (reset / first load)
 
@@ -101,7 +103,10 @@ south at a modest altitude — a natural outdoor “looking up” pose.
 
 - **Object name search** (top-center) — type-ahead over **47 named entries** (38 curated bright stars +
   9 solar-system bodies). Enter selects and enables tracking.
-- **"Use my location"** — browser geolocation with IP fallback.
+- **"Use my location"** — browser geolocation, with a coarse third-party IP-address
+  lookup as a fallback when the browser cannot answer. Pressing the button is what
+  triggers the request; declining the browser permission prompt stops there, with no
+  IP fallback. Worth knowing before using it on a classroom machine.
 - **N / P** — cycle only among named stars and planets currently in the field of view.
 
 ### Coordinate systems (overlays)
@@ -192,7 +197,7 @@ You can open the sim with a prepared observer and epoch in the URL, for example:
 
 `?lat=-33.9&lon=151.2&date=2024-12-21T10:00:00Z&fov=60&magLimit=4`
 
-Useful parameters: `lat`, `lon`, `date` (ISO-8601 UTC), `fov`, `magLimit`, plus
+Useful parameters: `lat`, `lon`, `date` (ISO-8601 UTC, 1900–2100), `fov`, `magLimit`, plus
 optional toggles for star names, constellation lines, planet names, and the
 deeper star catalog. Full list:
 [implementation-notes.md](./implementation-notes.md#deep-link-query-parameters).

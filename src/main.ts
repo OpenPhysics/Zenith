@@ -64,13 +64,9 @@ onReadyToLaunch(() => {
       },
     }),
 
-    // Optional: fill in credits shown in Help → About
-    credits: {
-      leadDesign: "",
-      softwareDevelopment: "",
-      team: "",
-      qualityAssurance: "",
-    },
+    // `credits` is deliberately omitted: joist renders a row for every key it is
+    // given, so empty strings produce blank labelled rows in Help → About. Add
+    // the keys back only with real names. Project attribution lives in CREDITS.md.
   });
 
   sim.start();
