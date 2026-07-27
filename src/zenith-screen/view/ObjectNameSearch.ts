@@ -14,7 +14,7 @@
 
 import { DerivedProperty, Multilink, PatternStringProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
 import type { OneKeyStroke } from "scenerystack/scenery";
-import { KeyboardListener, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
+import { Color, KeyboardListener, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
 import { LIGHT_SURFACE_TEXT_FILL } from "../../common/ZenithButtonOptions.js";
 import { ZenithPanel } from "../../common/ZenithPanel.js";
@@ -151,14 +151,19 @@ export class ObjectNameSearch extends Node {
 
     // ── Result rows ─────────────────────────────────────────────────────────────
     const rowFont = new PhetFont(CONTROL_FONT_SIZE);
+    // Result rows sit directly on the dark panel fill, not on the white field
+    // surface, so they take the panel text color. Using LIGHT_SURFACE_TEXT_FILL
+    // here (near-black on deep indigo) renders them at ~1:1 contrast. The
+    // highlighted row inverts: dark text on the light accent fill.
     const createRow = (entry: Entry, active: boolean): Node => {
       const background = new Rectangle(0, 0, ROW_WIDTH, ROW_HEIGHT, {
         cornerRadius: 3,
-        fill: active ? ZenithColors.accentColorProperty : "rgba(0,0,0,0)",
+        // Transparent (not null) so the whole row stays a pointer hit target.
+        fill: active ? ZenithColors.accentColorProperty : Color.TRANSPARENT,
       });
       const label = new Text(entry.nameProperty, {
         font: rowFont,
-        fill: active ? ZenithColors.controlSurfaceColorProperty : LIGHT_SURFACE_TEXT_FILL,
+        fill: active ? LIGHT_SURFACE_TEXT_FILL : ZenithColors.textColorProperty,
         maxWidth: ROW_WIDTH - 12,
       });
       label.left = 6;
@@ -174,9 +179,10 @@ export class ObjectNameSearch extends Node {
     );
 
     // ── "No matches" line + list visibility ────────────────────────────────────
+    // Also on the dark panel fill, not the white field — panel text color.
     const statusText = new Text(controls.searchNoMatchesStringProperty, {
       font: rowFont,
-      fill: LIGHT_SURFACE_TEXT_FILL,
+      fill: ZenithColors.textColorProperty,
       maxWidth: FIELD_WIDTH,
     });
     Multilink.multilink([focusedProperty, queryProperty, matchesProperty], (isFocused, q, matches) => {

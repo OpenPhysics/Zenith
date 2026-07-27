@@ -163,6 +163,15 @@ const buildVisibility = (
 };
 
 export class SelectedObjectReadout extends Node {
+  /**
+   * Teardown steps for the axon graph this node builds, in the order they must
+   * run: internal links first, then the Text/Checkbox subtree, then the pattern
+   * Properties they read, then the DerivedProperties those patterns depend on.
+   * `DerivedProperty.dispose()` throws while it still has listeners, so the order
+   * matters — each stage releases the subscribers of the next.
+   */
+  private readonly disposers: (() => void)[] = [];
+
   public constructor(model: ZenithModel) {
     super();
 
@@ -176,9 +185,12 @@ export class SelectedObjectReadout extends Node {
     const nameProperty = new Property(
       objectName(model.selectedObjectProperty.value, stars, controls.selectedNoneStringProperty.value),
     );
-    Multilink.multilink([model.selectedObjectProperty, controls.selectedNoneStringProperty], (selected, noneLabel) => {
-      nameProperty.value = objectName(selected, stars, noneLabel);
-    });
+    const nameMultilink = Multilink.multilink(
+      [model.selectedObjectProperty, controls.selectedNoneStringProperty],
+      (selected, noneLabel) => {
+        nameProperty.value = objectName(selected, stars, noneLabel);
+      },
+    );
 
     const coordsProperty = new DerivedProperty(
       [
@@ -258,8 +270,16 @@ export class SelectedObjectReadout extends Node {
     const elongDegProperty = new DerivedProperty([elongationProperty], (e) => (e ? e.deg : "—"));
     const elongDirProperty = new DerivedProperty([elongationProperty], (e) => (e ? e.dir : ""));
 
+    // Pattern Properties are hoisted (rather than built inline in each Text) so
+    // dispose() can release them after the Texts that read them are torn down.
+    const patterns: { dispose: () => void }[] = [];
+    const pattern = <T extends { dispose: () => void }>(property: T): T => {
+      patterns.push(property);
+      return property;
+    };
+
     const nameText = new Text(
-      new PatternStringProperty(controls.selectedObjectStringProperty, { name: nameProperty }),
+      pattern(new PatternStringProperty(controls.selectedObjectStringProperty, { name: nameProperty })),
       { font: labelFont, fill: ZenithColors.accentColorProperty, maxWidth },
     );
     const noneText = new Text(controls.selectedNoneStringProperty, {
@@ -267,27 +287,34 @@ export class SelectedObjectReadout extends Node {
       fill: ZenithColors.textColorProperty,
       maxWidth,
     });
-    const magText = new Text(new PatternStringProperty(controls.selectedMagStringProperty, { mag: magProperty }), {
-      font: labelFont,
-      fill: ZenithColors.textColorProperty,
-      maxWidth,
-    });
+    const magText = new Text(
+      pattern(new PatternStringProperty(controls.selectedMagStringProperty, { mag: magProperty })),
+      {
+        font: labelFont,
+        fill: ZenithColors.textColorProperty,
+        maxWidth,
+      },
+    );
     const eqText = new Text(
-      new PatternStringProperty(controls.selectedEquatorialStringProperty, {
-        ra: raProperty,
-        dec: decProperty,
-      }),
+      pattern(
+        new PatternStringProperty(controls.selectedEquatorialStringProperty, {
+          ra: raProperty,
+          dec: decProperty,
+        }),
+      ),
       { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
     );
     const hzText = new Text(
-      new PatternStringProperty(controls.selectedHorizontalStringProperty, {
-        alt: altProperty,
-        az: azProperty,
-      }),
+      pattern(
+        new PatternStringProperty(controls.selectedHorizontalStringProperty, {
+          alt: altProperty,
+          az: azProperty,
+        }),
+      ),
       { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
     );
     const typeText = new Text(
-      new PatternStringProperty(controls.selectedTypeStringProperty, { type: typeNameProperty }),
+      pattern(new PatternStringProperty(controls.selectedTypeStringProperty, { type: typeNameProperty })),
       {
         font: labelFont,
         fill: ZenithColors.textColorProperty,
@@ -295,16 +322,20 @@ export class SelectedObjectReadout extends Node {
       },
     );
     const constellationText = new Text(
-      new PatternStringProperty(controls.selectedConstellationStringProperty, {
-        constellation: constellationNameProperty,
-      }),
+      pattern(
+        new PatternStringProperty(controls.selectedConstellationStringProperty, {
+          constellation: constellationNameProperty,
+        }),
+      ),
       { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
     );
     const elongationText = new Text(
-      new PatternStringProperty(controls.selectedElongationStringProperty, {
-        deg: elongDegProperty,
-        dir: elongDirProperty,
-      }),
+      pattern(
+        new PatternStringProperty(controls.selectedElongationStringProperty, {
+          deg: elongDegProperty,
+          dir: elongDirProperty,
+        }),
+      ),
       { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth },
     );
 
@@ -333,41 +364,48 @@ export class SelectedObjectReadout extends Node {
 
     const eventTextOptions = { font: labelFont, fill: ZenithColors.textColorProperty, maxWidth };
     const riseText = new Text(
-      new PatternStringProperty(controls.selectedRiseStringProperty, {
-        time: riseTimeProperty,
-        clock: riseClockProperty,
-        az: riseAzProperty,
-      }),
+      pattern(
+        new PatternStringProperty(controls.selectedRiseStringProperty, {
+          time: riseTimeProperty,
+          clock: riseClockProperty,
+          az: riseAzProperty,
+        }),
+      ),
       eventTextOptions,
     );
     const setText = new Text(
-      new PatternStringProperty(controls.selectedSetStringProperty, {
-        time: setTimeProperty,
-        clock: setClockProperty,
-        az: setAzProperty,
-      }),
+      pattern(
+        new PatternStringProperty(controls.selectedSetStringProperty, {
+          time: setTimeProperty,
+          clock: setClockProperty,
+          az: setAzProperty,
+        }),
+      ),
       eventTextOptions,
     );
     const transitText = new Text(
-      new PatternStringProperty(controls.selectedTransitStringProperty, {
-        time: transitTimeProperty,
-        clock: transitClockProperty,
-        alt: transitAltProperty,
-      }),
+      pattern(
+        new PatternStringProperty(controls.selectedTransitStringProperty, {
+          time: transitTimeProperty,
+          clock: transitClockProperty,
+          alt: transitAltProperty,
+        }),
+      ),
       eventTextOptions,
     );
     const circumpolarText = new Text(controls.selectedCircumpolarStringProperty, eventTextOptions);
     const neverRisesText = new Text(controls.selectedNeverRisesStringProperty, eventTextOptions);
 
-    visibilityProperty.link((v) => {
+    const onVisibility = (v: Visibility): void => {
       riseText.visible = v.kind === "risesSets";
       setText.visible = v.kind === "risesSets";
       transitText.visible = v.kind === "risesSets" || v.kind === "circumpolar";
       circumpolarText.visible = v.kind === "circumpolar";
       neverRisesText.visible = v.kind === "neverRises";
-    });
+    };
+    visibilityProperty.link(onVisibility);
 
-    coordsProperty.link((coords) => {
+    const onCoords = (coords: SelectionCoords): void => {
       const hasSelection = coords.kind !== "none";
       noneText.visible = !hasSelection;
       nameText.visible = hasSelection;
@@ -376,14 +414,17 @@ export class SelectedObjectReadout extends Node {
       magText.visible = hasSelection;
       eqText.visible = hasSelection;
       hzText.visible = hasSelection;
-    });
+    };
+    coordsProperty.link(onCoords);
 
     // Elongation only applies to planets (and the Moon), never a bare star or the Sun.
-    elongationProperty.link((elong) => {
+    const onElongation = (elong: { deg: string; dir: string } | null): void => {
       elongationText.visible = elong !== null;
-    });
+    };
+    elongationProperty.link(onElongation);
 
     // ── Track toggle (enabled only when an object is selected) ────────────────
+    const trackEnabledProperty = new DerivedProperty([model.selectedObjectProperty], (s) => s !== null);
     const trackCheckbox = new Checkbox(
       model.trackSelectedObjectProperty,
       new Text(controls.trackSelectedStringProperty, {
@@ -393,7 +434,9 @@ export class SelectedObjectReadout extends Node {
       }),
       {
         ...ZENITH_CHECKBOX_OPTIONS,
-        enabledProperty: new DerivedProperty([model.selectedObjectProperty], (s) => s !== null),
+        // Not owned by the Checkbox (EnabledComponent only disposes an
+        // enabledProperty it created), so dispose() below releases it.
+        enabledProperty: trackEnabledProperty,
         accessibleName: a11y.controls.trackSelectedStringProperty,
       },
     );
@@ -420,5 +463,78 @@ export class SelectedObjectReadout extends Node {
         ],
       }),
     );
+
+    // ── Teardown, in dependency order ─────────────────────────────────────────
+    // 1. Internal listeners on Properties we are about to dispose.
+    this.disposers.push(() => {
+      visibilityProperty.unlink(onVisibility);
+      coordsProperty.unlink(onCoords);
+      elongationProperty.unlink(onElongation);
+      nameMultilink.dispose();
+    });
+    // 2. Pattern Properties (their Text readers are disposed by dispose() first).
+    this.disposers.push(() => {
+      for (const patternProperty of patterns) {
+        patternProperty.dispose();
+      }
+    });
+    // 3. Derived Properties that fed those patterns, leaf-most first…
+    this.disposers.push(() => {
+      for (const property of [
+        magProperty,
+        raProperty,
+        decProperty,
+        altProperty,
+        azProperty,
+        typeNameProperty,
+        constellationNameProperty,
+        constellationSourceProperty,
+        elongDegProperty,
+        elongDirProperty,
+        riseTimeProperty,
+        riseAzProperty,
+        riseClockProperty,
+        setTimeProperty,
+        setAzProperty,
+        setClockProperty,
+        transitTimeProperty,
+        transitAltProperty,
+        transitClockProperty,
+      ]) {
+        property.dispose();
+      }
+    });
+    // 4. …then the bases they derived from, and the standalone Properties.
+    this.disposers.push(() => {
+      coordsProperty.dispose();
+      visibilityProperty.dispose();
+      elongationProperty.dispose();
+      trackEnabledProperty.dispose();
+      nameProperty.dispose();
+    });
+  }
+
+  /**
+   * Releases this panel's axon graph. `Node.dispose()` only detaches children, so
+   * the readout's Texts, its pattern Properties, and the ~20 DerivedProperties
+   * behind them would otherwise stay subscribed to the model and the shared
+   * StringManager after the screen is torn down. Children are disposed between
+   * stages 1 and 2 so no Text is still reading a pattern when it is released.
+   * Idempotent — the disposer list is drained on the first call.
+   */
+  public override dispose(): void {
+    const [detachListeners, disposePatterns, ...rest] = this.disposers.splice(0);
+    detachListeners?.();
+
+    const children = this.children;
+    super.dispose();
+    for (const child of children) {
+      child.disposeSubtree();
+    }
+
+    disposePatterns?.();
+    for (const disposeStage of rest) {
+      disposeStage();
+    }
   }
 }

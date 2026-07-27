@@ -17,6 +17,7 @@
 import { logGlobal } from "scenerystack/phet-core";
 import { QueryStringMachine } from "scenerystack/query-string-machine";
 import {
+  CIVIL_TIME_MS_RANGE,
   DEFAULT_CIVIL_TIME_MS,
   DEFAULT_DEEP_STAR_CATALOG,
   DEFAULT_FIELD_OF_VIEW_DEG,
@@ -34,7 +35,14 @@ import {
 import ZenithNamespace from "../ZenithNamespace.js";
 
 /**
- * Returns true when `value` is empty/null (use sim default) or a parseable civil date.
+ * Returns true when `value` is empty/null (use sim default), or a parseable
+ * civil date that falls inside the span the simulation can actually represent
+ * ({@link CIVIL_TIME_MS_RANGE}, i.e. the `CIVIL_YEAR_RANGE` the date-jump
+ * spinners cover). Parseability alone is not enough: an out-of-range epoch would
+ * be silently clamped to the range boundary further down, so a shared link would
+ * quietly render a different sky than the one it names. Rejecting it here makes
+ * QueryStringMachine warn and fall back to the documented default instead.
+ *
  * Used by QueryStringMachine `isValidValue` for the `date` parameter.
  * `StringType` from QueryStringMachine includes `null`, so accept that here.
  */
@@ -42,18 +50,20 @@ export function isValidCivilDateQueryParam(value: string | null): boolean {
   if (value === null || value === "") {
     return true;
   }
-  return !Number.isNaN(Date.parse(value));
+  const ms = Date.parse(value);
+  return !Number.isNaN(ms) && CIVIL_TIME_MS_RANGE.contains(ms);
 }
 
 /**
- * Parses a civil-date query string to UTC ms, or null when empty / invalid.
+ * Parses a civil-date query string to UTC ms, or null when empty, unparseable,
+ * or outside {@link CIVIL_TIME_MS_RANGE}.
  */
 export function parseCivilDateQueryParam(value: string | null): number | null {
   if (value === null || value === "") {
     return null;
   }
   const ms = Date.parse(value);
-  return Number.isNaN(ms) ? null : ms;
+  return Number.isNaN(ms) || !CIVIL_TIME_MS_RANGE.contains(ms) ? null : ms;
 }
 
 /**
@@ -86,8 +96,9 @@ const zenithQueryParameters = QueryStringMachine.getAll({
   },
 
   /**
-   * Civil UTC timestamp (`Date.parse` / ISO-8601). Empty string uses the sim default.
-   * Example: `?date=2024-12-21T10:00:00Z`.
+   * Civil UTC timestamp (`Date.parse` / ISO-8601), within the supported civil
+   * year range (1900–2100). Empty string — or a date outside that range — uses
+   * the sim default. Example: `?date=2024-12-21T10:00:00Z`.
    */
   date: {
     type: "string",

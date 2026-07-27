@@ -10,7 +10,7 @@ import {
   parseCivilDateQueryParam,
   resolveCivilTimeMsFromQuery,
 } from "../src/preferences/zenithQueryParameters.js";
-import { DEFAULT_CIVIL_TIME_MS } from "../src/ZenithConstants.js";
+import { CIVIL_TIME_MS_RANGE, DEFAULT_CIVIL_TIME_MS } from "../src/ZenithConstants.js";
 
 describe("zenithQueryParameters date helpers", () => {
   it("treats empty or null date as the sim default civil epoch", () => {
@@ -32,5 +32,23 @@ describe("zenithQueryParameters date helpers", () => {
   it("rejects unparseable date strings", () => {
     expect(isValidCivilDateQueryParam("not-a-date")).toBe(false);
     expect(parseCivilDateQueryParam("not-a-date")).toBeNull();
+  });
+
+  it("rejects parseable dates outside the supported civil year range", () => {
+    // Accepting these would let the date-jump spinners clamp them to the range
+    // boundary, so a shared link would silently render a different sky.
+    for (const outOfRange of ["1850-01-01T00:00:00Z", "2150-06-01T00:00:00Z"]) {
+      expect(isValidCivilDateQueryParam(outOfRange)).toBe(false);
+      expect(parseCivilDateQueryParam(outOfRange)).toBeNull();
+      expect(resolveCivilTimeMsFromQuery(outOfRange)).toBe(DEFAULT_CIVIL_TIME_MS);
+    }
+  });
+
+  it("accepts dates at both ends of the supported range", () => {
+    for (const ms of [CIVIL_TIME_MS_RANGE.min, CIVIL_TIME_MS_RANGE.max]) {
+      const iso = new Date(ms).toISOString();
+      expect(isValidCivilDateQueryParam(iso)).toBe(true);
+      expect(resolveCivilTimeMsFromQuery(iso)).toBe(ms);
+    }
   });
 });

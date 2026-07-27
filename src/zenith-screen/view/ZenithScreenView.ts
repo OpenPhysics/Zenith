@@ -62,6 +62,7 @@ const SELECTION_PANEL_BOTTOM_CLEARANCE = 52;
 
 export class ZenithScreenView extends ScreenView {
   private readonly skyNode: PlanetariumSkyNode;
+  private readonly selectedReadout: SelectedObjectReadout;
   private readonly searchNode: ObjectNameSearch;
   private readonly controlPanel: AccordionBox;
   private readonly timePanel: TimeControlPanel;
@@ -184,7 +185,7 @@ export class ZenithScreenView extends ScreenView {
       },
     );
 
-    const selectedReadout = new SelectedObjectReadout(model);
+    this.selectedReadout = new SelectedObjectReadout(model);
 
     const checkbox = (
       property: typeof model.showGridProperty,
@@ -419,7 +420,7 @@ export class ZenithScreenView extends ScreenView {
     this.addChild(this.skyNode);
 
     // Selection readout sits over the sky (bottom-left).
-    const selectionPanel = new ZenithPanel(selectedReadout, {
+    const selectionPanel = new ZenithPanel(this.selectedReadout, {
       xMargin: 8,
       yMargin: 6,
     });
@@ -500,8 +501,24 @@ export class ZenithScreenView extends ScreenView {
       this.searchNode.centerX = visibleBounds.centerX;
       this.searchNode.top = visibleBounds.minY + SCREEN_VIEW_MARGIN;
 
-      selectionPanel.left = visibleBounds.minX + SELECTION_PANEL_INSET;
+      // Selection readout: bottom-left over the sky. The left column (Location +
+      // Time) can reach the bottom of the window at common sizes, which would
+      // leave the readout painted over by the Time panel — so when they would
+      // overlap, slide it clear to the right of that column instead.
+      //
+      // `left` is computed once and assigned once: this runs re-entrantly from
+      // selectionPanel.boundsProperty, so writing it twice (default, then the
+      // shifted value) would notify back into here forever. Anchoring `bottom`
+      // first is safe — the overlap test reads `top`, which depends on `bottom`
+      // and the panel height, never on `left`.
       selectionPanel.bottom = safeBottom - SELECTION_PANEL_BOTTOM_CLEARANCE;
+      const selectionClearsLeftColumn = selectionPanel.top >= this.timePanel.bottom + RESET_ALL_PANEL_GAP;
+      selectionPanel.left = selectionClearsLeftColumn
+        ? visibleBounds.minX + SELECTION_PANEL_INSET
+        : Math.min(
+            this.timePanel.right + RESET_ALL_PANEL_GAP,
+            visibleBounds.maxX - SELECTION_PANEL_INSET - selectionPanel.width,
+          );
 
       resetAllButton.right = visibleBounds.maxX - SCREEN_VIEW_MARGIN;
       resetAllButton.bottom = safeBottom - SCREEN_VIEW_MARGIN;
@@ -577,6 +594,7 @@ export class ZenithScreenView extends ScreenView {
       dispose();
     }
     this.skyNode.dispose();
+    this.selectedReadout.dispose();
   }
 
   public override step(_dt: number): void {

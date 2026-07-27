@@ -10,6 +10,7 @@ import { equatorialToHorizontal } from "../src/common/sky/SkyCoordinates.js";
 import { ZenithPreferencesModel } from "../src/preferences/ZenithPreferencesModel.js";
 import {
   CIVIL_HOURS_PER_SIM_SECOND,
+  CIVIL_TIME_MS_RANGE,
   DEFAULT_CIVIL_TIME_MS,
   DEFAULT_FIELD_OF_VIEW_DEG,
   DEFAULT_LATITUDE_DEG,
@@ -286,5 +287,34 @@ describe("ZenithModel", () => {
     model.civilTimeMsProperty.value = Date.UTC(2020, 0, 1, 3, 0, 0);
     expect(model.epochPresetProperty.value).toBe(EpochPreset.CUSTOM);
     expect(model.civilTimeMsProperty.value).toBe(Date.UTC(2020, 0, 1, 3, 0, 0));
+  });
+
+  it("keeps the epoch preset selected while the clock ticks within the readout's precision", () => {
+    // The timer starts playing, so the first step advances civil time by a few
+    // milliseconds. That must not flip the combo to CUSTOM while the UTC readout
+    // (minute precision) still shows the preset epoch.
+    model.epochPresetProperty.value = EpochPreset.DECEMBER_SOLSTICE;
+    model.step(1 / 60);
+    expect(model.epochPresetProperty.value).toBe(EpochPreset.DECEMBER_SOLSTICE);
+  });
+
+  it("marks epoch CUSTOM once the clock has moved a full minute off the preset", () => {
+    model.epochPresetProperty.value = EpochPreset.DECEMBER_SOLSTICE;
+    model.advanceCivilTimeHours(1 / 60);
+    expect(model.epochPresetProperty.value).toBe(EpochPreset.CUSTOM);
+  });
+
+  it("holds civil time inside the supported year range", () => {
+    model.setCivilTimeMs(CIVIL_TIME_MS_RANGE.max + 5 * 365 * 24 * 3600 * 1000);
+    expect(model.civilTimeMsProperty.value).toBe(CIVIL_TIME_MS_RANGE.max);
+
+    model.setCivilTimeMs(CIVIL_TIME_MS_RANGE.min - 5 * 365 * 24 * 3600 * 1000);
+    expect(model.civilTimeMsProperty.value).toBe(CIVIL_TIME_MS_RANGE.min);
+  });
+
+  it("stops the clock at the range edge instead of playing past it", () => {
+    model.setCivilTimeMs(CIVIL_TIME_MS_RANGE.max);
+    model.advanceCivilTimeHours(48);
+    expect(model.civilTimeMsProperty.value).toBe(CIVIL_TIME_MS_RANGE.max);
   });
 });
