@@ -59,7 +59,7 @@ describe("SkyProjection", () => {
       [30, 170],
       [60, 200],
       [10, 150],
-    ]) {
+    ] as const) {
       const point = p.project(alt, az);
       expect(point).not.toBeNull();
       const back = p.unproject(point as Vector2);

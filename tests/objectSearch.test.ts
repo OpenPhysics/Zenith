@@ -59,7 +59,7 @@ describe("rankObjects", () => {
     const result = rankObjects("al", ENTRIES, ENTRIES.length);
     // All three start with "Al" (Altair, Aldebaran); "Canopus"/"Regulus" contain "al"? no.
     expect(result.length).toBeGreaterThan(0);
-    expect(result[0].name).toBe("Aldebaran"); // shorter prefix name beats Altair
+    expect(result[0]!.name).toBe("Aldebaran"); // shorter prefix name beats Altair
     // Everything returned must actually match.
     for (const entry of result) {
       expect(entry.name.toLowerCase().startsWith("al") || entry.id.includes("al")).toBe(true);
@@ -75,7 +75,7 @@ describe("rankObjects", () => {
 
   it("falls back to the stable id when the name does not match", () => {
     const result = rankObjects("gammaCas", ENTRIES, 3);
-    expect(result[0].name).toBe("Gamma Cas");
+    expect(result[0]!.name).toBe("Gamma Cas");
   });
 
   it("finds multi-word names by a later word (substring)", () => {
