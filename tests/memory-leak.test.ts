@@ -1,5 +1,5 @@
 /**
- * Fleet-standard memory-leak regression suite (TemplateSingleSim / QubitSketch pattern).
+ * Fleet-standard memory-leak regression suite (SceneryStackTemplate / QubitSketch pattern).
  */
 
 import { Bounds2 } from "scenerystack/dot";
