@@ -75,8 +75,11 @@ describe("equatorialToHorizonVector", () => {
     expect(points[0]?.z).toBeCloseTo(-1, 5);
     expect(points.at(-1)?.z).toBeCloseTo(1, 5);
     for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1]!;
-      const b = points[i]!;
+      const a = points[i - 1];
+      const b = points[i];
+      if (!(a && b)) {
+        throw new Error("expected consecutive horizon points to exist");
+      }
       expect(a.dot(b)).toBeGreaterThan(0.95);
     }
   });
