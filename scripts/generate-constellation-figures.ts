@@ -11,13 +11,24 @@
  * Run: npx tsx scripts/generate-constellation-figures.ts
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(SCRIPT_DIR, "..");
-const SKYCULTURE = join(ROOT, "reference/stellarium-web-engine/apps/test-skydata/skycultures/western/index.json");
+const SKYCULTURE = join(
+  ROOT,
+  "..",
+  "Baseline",
+  "Astronomy",
+  "stellarium-web-engine",
+  "apps",
+  "test-skydata",
+  "skycultures",
+  "western",
+  "index.json",
+);
 const HIP_CACHE = join(SCRIPT_DIR, "data/hip-constellation-stars.json");
 const OUT_TS = join(ROOT, "src/zenith-screen/model/ConstellationLines.ts");
 const STRINGS = {
@@ -238,6 +249,14 @@ const ES_NAMES: Record<string, string> = {
   volans: "Pez Volador",
   vulpecula: "Zorra",
 };
+
+if (!existsSync(SKYCULTURE)) {
+  throw new Error(
+    `Stellarium skyculture not found at:\n  ${SKYCULTURE}\n` +
+      `Clone OpenPhysics/Baseline as a sibling, then:\n` +
+      `  (cd ../Baseline && ./scripts/fetch-baselines.sh --only Astronomy/stellarium-web-engine)`,
+  );
+}
 
 const culture = JSON.parse(readFileSync(SKYCULTURE, "utf8")) as {
   constellations: CultureConstellation[];

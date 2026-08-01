@@ -56,7 +56,7 @@ src/zenith-screen/view/SkyProjection.ts
 src/zenith-screen/view/CelestialLinesNode.ts
 src/zenith-screen/view/TimeControlPanel.ts
 src/zenith-screen/view/ObserverLocationNode.ts
-reference/stellarium-web-engine/   (gitignored local reference)
+../Baseline/Astronomy/stellarium-web-engine/   (OpenPhysics/Baseline; run fetch-baselines.sh)
 ```
 
 Inspired by Stellarium Web Engine’s observer → frame → project path, implemented
