@@ -38,7 +38,7 @@ Thumbs.db
 # Claude Code - local settings excluded, hooks tracked
 .claude/settings.local.json
 
-# Local reference clones (e.g. Stellarium Web Engine) — not part of the sim bundle
+# Upstream baselines live in ../Baseline; do not re-clone under reference/
 reference/
 
 # CI / local npm audit artifact (must not be linted)

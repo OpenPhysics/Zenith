@@ -4,7 +4,7 @@ Sim-specific context for AI assistants. General SceneryStack guidance: [OpenPhys
 
 ## Project
 
-SceneryStack **first-person planetarium** for the night sky. Observer location, civil time (with derived LST), look direction, and field of view live in `ZenithModel`; `PlanetariumSkyNode` projects the bright-star catalog and solar-system bodies. Architecture: [doc/model.md](doc/model.md), [doc/implementation-notes.md](doc/implementation-notes.md). Upstream reference (not shipped): `reference/stellarium-web-engine/` for projection and sky-rendering ideas.
+SceneryStack **first-person planetarium** for the night sky. Observer location, civil time (with derived LST), look direction, and field of view live in `ZenithModel`; `PlanetariumSkyNode` projects the bright-star catalog and solar-system bodies. Architecture: [doc/model.md](doc/model.md), [doc/implementation-notes.md](doc/implementation-notes.md). Upstream reference (not shipped): `../Baseline/Astronomy/stellarium-web-engine` for projection and sky-rendering ideas.
 
 ## Key files
 
