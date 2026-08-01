@@ -195,6 +195,9 @@ export const attachPlanetariumInteraction = <T extends Node>(
     announceSelection(target, model, selected);
   };
 
+  // Pointer-only. Look pan stays on the KeyboardListener below so it keeps coming from
+  // ZenithHotkeyData.LOOK_PAN, which is the row the keyboard help dialog renders; a
+  // RichDragListener would claim the arrows without a HotkeyData entry behind them.
   const dragListener = new DragListener({
     start: (event) => {
       lastPoint.set(event.pointer.point);

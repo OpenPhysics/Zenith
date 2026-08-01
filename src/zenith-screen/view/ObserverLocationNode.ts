@@ -248,6 +248,9 @@ export class ObserverLocationNode extends Node {
     // The DragListener clamps modelPositionProperty to the lat/long bounds itself.
     // `useParentOffset` derives the grab offset from the positionProperty (not the
     // node transform), so pressing the crosshair never shifts it.
+    // Pointer-only, and the pin stays out of the focus order: this Node is the focusable map and
+    // already carries the arrow-key listener below, so making the pin focusable too would add a
+    // second tab stop that binds the same arrows.
     const dragListener = new DragListener({
       transform: modelViewTransform,
       positionProperty: modelPositionProperty,
