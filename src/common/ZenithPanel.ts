@@ -25,21 +25,26 @@
  *   const panel = new ZenithPanel(content, { fill: "transparent" });
  */
 
+import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
 import type { Node } from "scenerystack/scenery";
-import type { PanelOptions } from "scenerystack/sun";
-import { Panel } from "scenerystack/sun";
+import { Panel, type PanelOptions } from "scenerystack/sun";
 import ZenithColors from "../ZenithColors.js";
 import { PANEL_CORNER_RADIUS } from "../ZenithConstants.js";
 
+export type ZenithPanelOptions = PanelOptions;
+
 export class ZenithPanel extends Panel {
-  public constructor(content: Node, providedOptions?: PanelOptions) {
-    super(content, {
-      fill: ZenithColors.panelBackgroundColorProperty,
-      stroke: ZenithColors.panelBorderColorProperty,
-      cornerRadius: PANEL_CORNER_RADIUS,
-      xMargin: 12,
-      yMargin: 10,
-      ...providedOptions,
-    });
+  public constructor(content: Node, providedOptions?: ZenithPanelOptions) {
+    const options = optionize<ZenithPanelOptions, EmptySelfOptions, PanelOptions>()(
+      {
+        fill: ZenithColors.panelBackgroundColorProperty,
+        stroke: ZenithColors.panelBorderColorProperty,
+        cornerRadius: PANEL_CORNER_RADIUS,
+        xMargin: 12,
+        yMargin: 10,
+      },
+      providedOptions,
+    );
+    super(content, options);
   }
 }

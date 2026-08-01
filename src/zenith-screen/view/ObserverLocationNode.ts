@@ -14,9 +14,10 @@
  * land never smears across the map.
  */
 
-import { Multilink, type NumberProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
+import { Multilink, type NumberProperty, Property } from "scenerystack/axon";
 import { Bounds2, Vector2 } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
+import { combineOptions, optionize } from "scenerystack/phet-core";
 import { ModelViewTransform2 } from "scenerystack/phetcommon";
 import {
   Circle,
@@ -33,14 +34,12 @@ import ZenithColors from "../../ZenithColors.js";
 import { LATITUDE_RANGE, LOCATION_STEP_DEGREES, LONGITUDE_RANGE } from "../../ZenithConstants.js";
 import { EARTH_SHORE_POLYGONS, type EarthShorePoint } from "./EarthShoreData.js";
 
-export type ObserverLocationNodeOptions = NodeOptions & {
+type ObserverLocationNodeSelfOptions = {
   /** Width of the map in view pixels (height is half, for a 2:1 equirectangular aspect). */
   mapWidth?: number;
-  /** Accessible name announced for the draggable map. */
-  accessibleName?: TReadOnlyProperty<string> | string;
-  /** Accessible help text for the draggable map. */
-  accessibleHelpText?: TReadOnlyProperty<string> | string;
 };
+
+export type ObserverLocationNodeOptions = ObserverLocationNodeSelfOptions & NodeOptions;
 
 type GeoPoint = { lon: number; lat: number };
 
@@ -167,7 +166,11 @@ export class ObserverLocationNode extends Node {
     longitudeProperty: NumberProperty,
     providedOptions?: ObserverLocationNodeOptions,
   ) {
-    const { mapWidth = 220, ...nodeOptions } = providedOptions ?? {};
+    const options = optionize<ObserverLocationNodeOptions, ObserverLocationNodeSelfOptions, NodeOptions>()(
+      { mapWidth: 220 },
+      providedOptions,
+    );
+    const { mapWidth, ...nodeOptions } = options;
     const width = mapWidth;
     const height = mapWidth / 2;
 
@@ -231,12 +234,16 @@ export class ObserverLocationNode extends Node {
       clipArea: Shape.rect(0, 0, width, height),
     });
 
-    super({
-      children: [mapRect, overlay],
-      tagName: "div",
-      focusable: true,
-      ...nodeOptions,
-    });
+    super(
+      combineOptions<NodeOptions>(
+        {
+          children: [mapRect, overlay],
+          tagName: "div",
+          focusable: true,
+        },
+        nodeOptions,
+      ),
+    );
 
     // The DragListener clamps modelPositionProperty to the lat/long bounds itself.
     // `useParentOffset` derives the grab offset from the positionProperty (not the

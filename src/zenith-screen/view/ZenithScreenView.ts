@@ -7,6 +7,7 @@
 
 import { BooleanProperty, PatternStringProperty } from "scenerystack/axon";
 import type { Bounds2 } from "scenerystack/dot";
+import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
 import { GridBox, HBox, Node, Rectangle, Text, VBox } from "scenerystack/scenery";
 import { InfoButton, NumberControl, PhetFont, ResetAllButton } from "scenerystack/scenery-phet";
 import type { ScreenViewOptions } from "scenerystack/sim";
@@ -60,6 +61,8 @@ const SELECTION_PANEL_INSET = 8;
  */
 const SELECTION_PANEL_BOTTOM_CLEARANCE = 52;
 
+export type ZenithScreenViewOptions = ScreenViewOptions;
+
 export class ZenithScreenView extends ScreenView {
   private readonly skyNode: PlanetariumSkyNode;
   private readonly selectedReadout: SelectedObjectReadout;
@@ -74,11 +77,14 @@ export class ZenithScreenView extends ScreenView {
    */
   private readonly disposers: (() => void)[] = [];
 
-  public constructor(model: ZenithModel, options?: ScreenViewOptions) {
-    super({
-      screenSummaryContent: new ZenithScreenSummaryContent(model),
-      ...options,
-    });
+  public constructor(model: ZenithModel, providedOptions?: ZenithScreenViewOptions) {
+    const options = optionize<ZenithScreenViewOptions, EmptySelfOptions, ScreenViewOptions>()(
+      {
+        screenSummaryContent: new ZenithScreenSummaryContent(model),
+      },
+      providedOptions,
+    );
+    super(options);
 
     const stringManager = StringManager.getInstance();
     const controls = stringManager.getControls();
