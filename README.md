@@ -1,5 +1,7 @@
 # Zenith
 
+[![CI](https://github.com/OpenPhysics/Zenith/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenPhysics/Zenith/actions/workflows/ci.yml)
+
 A SceneryStack **first-person planetarium** for the night sky — look around from
 an Earth observer, set latitude and FOV, and watch stars and planets move with
 civil time. Built with [SceneryStack](https://scenerystack.org/),
