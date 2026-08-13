@@ -185,6 +185,16 @@
       }
     },
     {
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "useExplicitType": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["src/zenith-screen/model/BrightStarCatalog.ts", "src/zenith-screen/view/EarthShoreData.ts"],
       "linter": {
         "rules": {
