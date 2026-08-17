@@ -32,14 +32,14 @@
     "release": "npm run check && npm run lint && npm run build && npm version patch && git push && git push --tags",
     "watch": "tsc --watch",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:fuzz": "playwright test --project=chromium",
+    "test:fuzz:quick": "FUZZ_DURATION=10 playwright test --project=chromium",
     "icons": "tsx scripts/generate-icons.ts",
     "constellations": "tsx scripts/generate-constellation-figures.ts",
     "clean": "rm -rf dist",
-    "prepare": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
-    "test:fuzz": "playwright test --project=chromium",
-    "test:fuzz:quick": "FUZZ_DURATION=10 playwright test --project=chromium"
+    "prepare": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",
