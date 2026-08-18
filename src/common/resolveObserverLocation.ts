@@ -2,10 +2,14 @@
  * resolveObserverLocation.ts
  *
  * Best-effort "where am I" for the observer-location controls. Tries the browser
- * Geolocation API first (which itself uses GPS / Wi-Fi / cell network and asks the
- * user once); if that is unavailable or fails for a non-permission reason, it falls
- * back to a coarse IP-based lookup that needs no permission. An explicit permission
- * denial is respected — no silent IP fallback in that case.
+ * Geolocation API first when it exists and Permissions-Policy allows it (GPS /
+ * Wi-Fi / cell; asks the user once). If that is unavailable, blocked by policy, or
+ * fails for a non-permission reason, it falls back to a coarse IP-based lookup
+ * that needs no permission. An explicit permission denial is respected — no silent
+ * IP fallback in that case.
+ *
+ * Do not call `getCurrentPosition` when the policy would block it: Chromium logs
+ * that as console.error, which Playwright fuzz treats as failure.
  *
  * Approximate accuracy is intentional: we only need the observer's rough place on
  * Earth, so `enableHighAccuracy` stays off to keep the request fast and unintrusive.
@@ -80,29 +84,70 @@ const resolveViaIp = async (): Promise<ResolvedLocation> => {
   throw new Error("IP geolocation failed");
 };
 
+type FeaturePolicyQuery = {
+  allowsFeature: (feature: string) => boolean;
+};
+
+/** `document.permissionsPolicy` (current) or `document.featurePolicy` (legacy). */
+const documentFeaturePolicy = (): FeaturePolicyQuery | null => {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const candidate = document as Document & {
+    permissionsPolicy?: FeaturePolicyQuery;
+    featurePolicy?: FeaturePolicyQuery;
+  };
+  const policy = candidate.permissionsPolicy ?? candidate.featurePolicy;
+  return policy && typeof policy.allowsFeature === "function" ? policy : null;
+};
+
+/**
+ * Whether `navigator.geolocation.getCurrentPosition` can be called without a
+ * Chromium Permissions-Policy console.error. Missing policy APIs are treated as
+ * allowed so capable browsers still get a prompt.
+ */
+const isGeolocationCallable = (): boolean => {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    return false;
+  }
+  const policy = documentFeaturePolicy();
+  if (!policy) {
+    return true;
+  }
+  try {
+    return policy.allowsFeature("geolocation");
+  } catch {
+    return false;
+  }
+};
+
 /** Resolves the observer's approximate location, or rejects if every method fails. */
 export const resolveObserverLocation = (): Promise<ResolvedLocation> =>
   new Promise<ResolvedLocation>((resolve, reject) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
+    if (!isGeolocationCallable()) {
       resolveViaIp().then(resolve, reject);
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) =>
-        resolve({
-          latitudeDeg: position.coords.latitude,
-          longitudeDeg: position.coords.longitude,
-          source: "device",
-        }),
-      (error) => {
-        // Honor an explicit "no"; otherwise a coarse network lookup is fair game.
-        if (error.code === error.PERMISSION_DENIED) {
-          reject(error);
-        } else {
-          resolveViaIp().then(resolve, () => reject(error));
-        }
-      },
-      { enableHighAccuracy: false, timeout: 12000, maximumAge: 10 * 60 * 1000 },
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          resolve({
+            latitudeDeg: position.coords.latitude,
+            longitudeDeg: position.coords.longitude,
+            source: "device",
+          }),
+        (error) => {
+          // Honor an explicit "no"; otherwise a coarse network lookup is fair game.
+          if (error.code === error.PERMISSION_DENIED) {
+            reject(error);
+          } else {
+            resolveViaIp().then(resolve, () => reject(error));
+          }
+        },
+        { enableHighAccuracy: false, timeout: 12000, maximumAge: 10 * 60 * 1000 },
+      );
+    } catch {
+      resolveViaIp().then(resolve, reject);
+    }
   });
