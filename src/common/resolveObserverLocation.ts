@@ -8,8 +8,9 @@
  * that needs no permission. An explicit permission denial is respected — no silent
  * IP fallback in that case.
  *
- * Do not call `getCurrentPosition` when the policy would block it: Chromium logs
- * that as console.error, which Playwright fuzz treats as failure.
+ * Do not call `getCurrentPosition` when the policy would block it, and do not
+ * `fetch` a URL that `connect-src` would refuse: Chromium logs both as
+ * console.error, which Playwright fuzz treats as failure.
  *
  * Approximate accuracy is intentional: we only need the observer's rough place on
  * Earth, so `enableHighAccuracy` stays off to keep the request fast and unintrusive.
@@ -34,6 +35,29 @@ const IP_ENDPOINTS: ReadonlyArray<{ url: string; parse: (json: unknown) => Resol
     parse: (json) => coordsFrom(json, "latitude", "longitude"),
   },
 ];
+
+/**
+ * Extra `connect-src` origins beyond `'self' blob:`. Must stay empty unless
+ * `vite.config.ts` lists the same hosts — otherwise Chromium console.errors a
+ * CSP violation and `?fuzz` fails.
+ */
+const CONNECT_SRC_EXTRA_ORIGINS: readonly string[] = [];
+
+/** Whether a `fetch(url)` is allowed by this sim's CSP `connect-src`. */
+export const canConnectToUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url, typeof location === "undefined" ? "http://localhost/" : location.href);
+    if (parsed.protocol === "blob:") {
+      return true;
+    }
+    if (typeof location !== "undefined" && parsed.origin === location.origin) {
+      return true;
+    }
+    return CONNECT_SRC_EXTRA_ORIGINS.includes(parsed.origin);
+  } catch {
+    return false;
+  }
+};
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
@@ -71,7 +95,11 @@ const resolveViaIp = async (): Promise<ResolvedLocation> => {
   if (typeof fetch === "undefined") {
     throw new Error("fetch unavailable");
   }
-  for (const endpoint of IP_ENDPOINTS) {
+  const allowed = IP_ENDPOINTS.filter((endpoint) => canConnectToUrl(endpoint.url));
+  if (allowed.length === 0) {
+    throw new Error("IP geolocation blocked by CSP");
+  }
+  for (const endpoint of allowed) {
     try {
       const parsed = endpoint.parse(await fetchJson(endpoint.url, 6000));
       if (parsed) {
