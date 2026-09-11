@@ -1,6 +1,6 @@
 # CLAUDE.md — Zenith
 
-Sim-specific context for AI assistants. General SceneryStack guidance: [OpenPhysics/.github/CLAUDE.md](https://github.com/OpenPhysics/.github/CLAUDE.md).
+Sim-specific context for AI assistants. General SceneryStack guidance: [OpenLyceum/.github/CLAUDE.md](https://github.com/OpenLyceum/.github/CLAUDE.md).
 
 ## Project
 
@@ -45,7 +45,7 @@ SceneryStack **first-person planetarium** for the night sky. Observer location, 
 
 ## Accessibility
 
-Follows the shared [OpenPhysics accessibility convention](https://github.com/OpenPhysics/Baton/blob/main/ACCESSIBILITY.md).
+Follows the shared [OpenLyceum accessibility convention](https://github.com/OpenLyceum/Baton/blob/main/ACCESSIBILITY.md).
 `ZenithScreenView` registers `ZenithScreenSummaryContent` (live `currentDetailsContent` over model state) via the `screenSummaryContent` super-option, and orders the PDOM through a wrapper `Node` with `ZenithKeyboardHelpContent`. A11y strings live under the top-level `a11y` key in each locale JSON, via `StringManager.getA11yStrings()`.
 
 ## Compliance carve-outs

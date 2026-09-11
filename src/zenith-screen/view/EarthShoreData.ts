@@ -6,7 +6,7 @@
  * use +Z for the north pole and the +X axis for the prime meridian, so longitude
  * is `atan2(y, x)` and latitude is `asin(z)`.
  *
- * Vendored from the OpenPhysics RotatingSky sim (its Explorer "Observer Location"
+ * Vendored from the OpenLyceum RotatingSky sim (its Explorer "Observer Location"
  * globe), which generates it from Natural Earth land GeoJSON.
  *
  * @generated — do not edit by hand.

@@ -253,7 +253,7 @@ const ES_NAMES: Record<string, string> = {
 if (!existsSync(SKYCULTURE)) {
   throw new Error(
     `Stellarium skyculture not found at:\n  ${SKYCULTURE}\n` +
-      `Clone OpenPhysics/Baseline as a sibling, then:\n` +
+      `Clone OpenLyceum/Baseline as a sibling, then:\n` +
       `  (cd ../Baseline && ./scripts/fetch-baselines.sh --only Astronomy/stellarium-web-engine)`,
   );
 }

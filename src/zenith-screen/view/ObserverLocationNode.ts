@@ -6,7 +6,7 @@
  * observer's latitude / longitude, the visual companion to the Latitude / Longitude
  * NumberControls.
  *
- * Adapted from the OpenPhysics RotatingSky sim's Explorer "Observer Location" map
+ * Adapted from the OpenLyceum RotatingSky sim's Explorer "Observer Location" map
  * (`FlatEarthMapNode`). Land coastlines come from Natural Earth data in
  * {@link EARTH_SHORE_POLYGONS}; longitude maps to x (−180° left, +180° right) and
  * latitude to y (+90° top, −90° bottom). Shore polygons are split at the
